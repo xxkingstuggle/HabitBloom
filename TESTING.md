@@ -11,6 +11,10 @@ The smoke test catches basic logic regressions. The stress test simulates hundre
 
 ## Manual App Checks
 
+- Search icons by Chinese keywords, English SF Symbol names, and emoji characters.
+- Select an emoji icon and a system icon, save, reopen the editor, and confirm the icon persists.
+- Paste a custom emoji and enter a valid SF Symbol name.
+- Enter an invalid SF Symbol name and confirm the picker shows it as unavailable instead of crashing.
 - Create, edit, reorder, and delete habits.
 - Switch card styles between soft, glass, minimal, and image.
 - Import a large photo and confirm the app remains responsive.

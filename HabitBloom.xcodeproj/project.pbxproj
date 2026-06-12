@@ -29,6 +29,7 @@
 		BFBC7971F5DFF6DCF1B4D11E /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2245981D41A66EE9FCC2B135 /* SettingsView.swift */; };
 		C5FBA66CD35CA69BD2426C1D /* HabitBloomWidgets.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 9E408CC35B36E09DCC1E33CE /* HabitBloomWidgets.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		D23472F6F14BF26E6878AFD2 /* LiquidGlassStyle.swift in Sources */ = {isa = PBXBuildFile; fileRef = F0AE1440174375040CC0CA42 /* LiquidGlassStyle.swift */; };
+		D834DF9CB1978E33C8B27E0F /* IconCatalog.swift in Sources */ = {isa = PBXBuildFile; fileRef = B385F2C0AE926A7D2D668E80 /* IconCatalog.swift */; };
 		FAF045AE8B797DD56DC1903D /* IconPickerSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6970689F40109E9868666FF6 /* IconPickerSheet.swift */; };
 		FFD976B4AE6F30F3667D3997 /* HabitEntities.swift in Sources */ = {isa = PBXBuildFile; fileRef = 72AA9F7B648AF84697F4D010 /* HabitEntities.swift */; };
 /* End PBXBuildFile section */
@@ -76,6 +77,7 @@
 		A94618CAC6044CD7136D7537 /* HabitBloom.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = HabitBloom.entitlements; sourceTree = "<group>"; };
 		B021B1E5B6D5E7CCA8C28EF9 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		B38117FF4902E6BB989DB05D /* HabitIconGlyph.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HabitIconGlyph.swift; sourceTree = "<group>"; };
+		B385F2C0AE926A7D2D668E80 /* IconCatalog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IconCatalog.swift; sourceTree = "<group>"; };
 		BB3CA1B87759AD55EFF8CDE2 /* HabitBloomWidgets.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = HabitBloomWidgets.entitlements; sourceTree = "<group>"; };
 		C51BCDB10EDE4722CA441218 /* HabitStatsService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HabitStatsService.swift; sourceTree = "<group>"; };
 		CB0162740D1F7021F3AA7256 /* PlatformColors.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlatformColors.swift; sourceTree = "<group>"; };
@@ -181,6 +183,7 @@
 				F5D37E535A4855F3E47E8536 /* HabitCardView.swift */,
 				4107A7C2B23C184B009803FC /* HabitEditorView.swift */,
 				B38117FF4902E6BB989DB05D /* HabitIconGlyph.swift */,
+				B385F2C0AE926A7D2D668E80 /* IconCatalog.swift */,
 				6970689F40109E9868666FF6 /* IconPickerSheet.swift */,
 				F0AE1440174375040CC0CA42 /* LiquidGlassStyle.swift */,
 				CB0162740D1F7021F3AA7256 /* PlatformColors.swift */,
@@ -312,6 +315,7 @@
 				2D7FB44F9A530C49CA428033 /* HabitModels.swift in Sources */,
 				71AA4DEF5D3B6A0B512A8727 /* HabitStatsCalculator.swift in Sources */,
 				4F95327D3B56D393BE1B4FE9 /* HabitStatsService.swift in Sources */,
+				D834DF9CB1978E33C8B27E0F /* IconCatalog.swift in Sources */,
 				FAF045AE8B797DD56DC1903D /* IconPickerSheet.swift in Sources */,
 				D23472F6F14BF26E6878AFD2 /* LiquidGlassStyle.swift in Sources */,
 				1A41396267D74609D7538D1B /* ManualFolderSyncService.swift in Sources */,

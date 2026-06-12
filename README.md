@@ -5,6 +5,7 @@ HabitBloom 是一个 SwiftUI 打卡 App，当前重点是 iPhone 体验、小组
 ## 已实现
 
 - 自定义打卡目标：名称、图标、颜色、卡片样式、目标星期、自定义图片。
+- 图标选择器：表情和 SF Symbols 精选分类，支持搜索和自定义输入。
 - 首页卡片流：显示今日状态、连续天数、累计天数、本月进度，并支持快速打卡。
 - 统计页：连续天数、累计天数、本月完成率、月度热力图。
 - 通知：每个目标可设置提醒时间和重复星期。
@@ -56,6 +57,7 @@ Widget target 需要启用：
 ```sh
 swift run HabitCoreSmokeTests
 swift run HabitCoreStressTests
+xcodebuild -project HabitBloom.xcodeproj -scheme HabitBloom -configuration Debug -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' CODE_SIGNING_ALLOWED=NO build
 ```
 
 在 Mac 上运行 iOS 原样版本：

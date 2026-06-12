@@ -1,30 +1,16 @@
 import SwiftUI
+#if canImport(UIKit)
+import UIKit
+#endif
 
 struct IconPickerSheet: View {
     @Environment(\.dismiss) private var dismiss
     @Binding var selection: String
     @State private var mode = IconPickerMode.emoji
+    @State private var query = ""
+    @State private var customIcon = ""
 
-    private let columns = Array(repeating: GridItem(.flexible(), spacing: 12), count: 6)
-
-    private let emojis = [
-        "📚", "💧", "🧘", "🏃", "💪", "🥗", "☕️", "🌙", "☀️", "🔥", "⭐️", "❤️",
-        "📝", "💰", "🎧", "🎨", "🧹", "🪴", "🍎", "🚶", "🛌", "🧠", "🎯", "🏆",
-        "🦷", "🧴", "💊", "🧘‍♂️", "🚴", "🏋️", "📖", "🧩", "🕯️", "🌿", "🍵", "🧊",
-        "🍋", "🍊", "🍓", "🥑", "🥦", "🥛", "🫖", "🍽️", "🧃", "🧁", "🍫", "🥾",
-        "⚽️", "🏀", "🎾", "🏊", "🧗", "⛳️", "🎹", "🎸", "📷", "🎬", "🧵", "🪡",
-        "🧺", "🛁", "🪥", "🧼", "🪒", "💤", "🛏️", "⏰", "📅", "✅", "🔔", "🧭",
-        "💻", "📱", "⌚️", "🧾", "📊", "📈", "📦", "🏠", "🚗", "✈️", "🗺️", "🧳",
-        "🐾", "🌈", "🌧️", "❄️", "🌊", "⛰️", "🌱", "🌸", "🌻", "🪷", "✨", "💎"
-    ]
-
-    private let symbols = [
-        "flame.fill", "book.closed.fill", "drop.fill", "figure.flexibility", "moon.fill", "sun.max.fill",
-        "bolt.fill", "heart.fill", "leaf.fill", "star.fill", "checkmark.circle.fill", "target",
-        "figure.run", "figure.walk", "dumbbell.fill", "bicycle", "brain.head.profile", "pencil.and.list.clipboard",
-        "creditcard.fill", "calendar", "alarm.fill", "paintpalette.fill", "music.note", "headphones",
-        "cup.and.saucer.fill", "fork.knife", "bed.double.fill", "sparkles", "timer", "chart.bar.fill"
-    ]
+    private let columns = Array(repeating: GridItem(.flexible(), spacing: 10), count: 6)
 
     var body: some View {
         NavigationStack {
@@ -38,55 +24,176 @@ struct IconPickerSheet: View {
                 .padding()
 
                 ScrollView {
-                    LazyVGrid(columns: columns, spacing: 12) {
-                        ForEach(currentIcons, id: \.self) { icon in
-                            Button {
-                                selection = icon
-                                dismiss()
-                            } label: {
-                                ZStack {
-                                    RoundedRectangle(cornerRadius: 16, style: .continuous)
-                                        .fill(selection == icon ? Color.accentColor.opacity(0.16) : Color.secondary.opacity(0.10))
-                                    HabitIconGlyph(icon: icon, size: icon.isEmojiIcon ? 30 : 24)
-                                        .foregroundStyle(selection == icon ? Color.accentColor : .primary)
-                                }
-                                .frame(height: 54)
+                    LazyVStack(alignment: .leading, spacing: 18) {
+                        customInputSection
+
+                        if visibleCategories.isEmpty {
+                            ContentUnavailableView("没有找到图标", systemImage: "magnifyingglass", description: Text("换个关键词，或者使用上面的自定义输入。"))
+                                .frame(maxWidth: .infinity)
+                                .padding(.top, 32)
+                        } else {
+                            ForEach(visibleCategories) { category in
+                                IconCategorySection(
+                                    category: category,
+                                    selection: selection,
+                                    columns: columns,
+                                    choose: choose
+                                )
                             }
-                            .buttonStyle(.plain)
-                            .accessibilityLabel(icon)
                         }
                     }
-                    .padding()
+                    .padding(.horizontal)
+                    .padding(.bottom, 24)
                 }
             }
             .navigationTitle("选择图标")
             .navigationBarTitleDisplayMode(.inline)
+            .searchable(text: $query, placement: .navigationBarDrawer(displayMode: .always), prompt: "搜索图标、中文、英文名")
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("关闭") { dismiss() }
                 }
             }
+            .onChange(of: mode) {
+                query = ""
+                customIcon = ""
+            }
         }
     }
 
-    private var currentIcons: [String] {
+    private var visibleCategories: [IconCategory] {
+        IconCatalog.categories(for: mode)
+            .compactMap { category in
+                let candidates = category.candidates.filter { $0.matches(query) }
+                guard !candidates.isEmpty else { return nil }
+                return IconCategory(title: category.title, mode: category.mode, candidates: candidates)
+            }
+    }
+
+    private var trimmedCustomIcon: String {
+        customIcon.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    private var customValidationMessage: String? {
+        guard !trimmedCustomIcon.isEmpty else { return nil }
+
         switch mode {
-        case .emoji: emojis
-        case .symbol: symbols
+        case .emoji:
+            return trimmedCustomIcon.isEmojiIcon ? nil : "请输入一个表情，例如 📚 或 🏃。"
+        case .symbol:
+            return isRenderableSystemSymbol(trimmedCustomIcon) ? nil : "这个 SF Symbol 名称不可用。"
+        }
+    }
+
+    private var canUseCustomIcon: Bool {
+        !trimmedCustomIcon.isEmpty && customValidationMessage == nil
+    }
+
+    private var customInputSection: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("自定义")
+                .font(.headline.weight(.bold))
+
+            HStack(spacing: 10) {
+                TextField(mode.customPlaceholder, text: $customIcon)
+                    .textInputAutocapitalization(.never)
+                    .autocorrectionDisabled()
+                    .padding(.horizontal, 12)
+                    .frame(height: 46)
+                    .background(Color.secondary.opacity(0.10), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+
+                Button {
+                    choose(trimmedCustomIcon)
+                } label: {
+                    Label("使用", systemImage: "checkmark")
+                        .labelStyle(.iconOnly)
+                        .frame(width: 46, height: 46)
+                }
+                .buttonStyle(.borderedProminent)
+                .disabled(!canUseCustomIcon)
+            }
+
+            HStack(spacing: 8) {
+                if !trimmedCustomIcon.isEmpty {
+                    HabitIconGlyph(icon: trimmedCustomIcon, size: trimmedCustomIcon.isEmojiIcon ? 28 : 22)
+                        .foregroundStyle(canUseCustomIcon ? .primary : .secondary)
+                        .frame(width: 38, height: 38)
+                        .background(Color.secondary.opacity(0.10), in: Circle())
+                }
+
+                Text(customValidationMessage ?? helperText)
+                    .font(.footnote)
+                    .foregroundStyle(customValidationMessage == nil ? Color.secondary : Color.red)
+            }
+        }
+        .padding(14)
+        .background(Color.secondary.opacity(0.08), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+    }
+
+    private var helperText: String {
+        switch mode {
+        case .emoji: "可以直接粘贴 iPhone 自带表情。"
+        case .symbol: "可输入 Apple SF Symbols 名称，例如 book.closed.fill。"
+        }
+    }
+
+    private func choose(_ icon: String) {
+        selection = icon
+        dismiss()
+    }
+}
+
+private struct IconCategorySection: View {
+    let category: IconCategory
+    let selection: String
+    let columns: [GridItem]
+    let choose: (String) -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(alignment: .firstTextBaseline) {
+                Text(category.title)
+                    .font(.headline.weight(.bold))
+                Text("\(category.candidates.count)")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.secondary)
+            }
+
+            LazyVGrid(columns: columns, spacing: 10) {
+                ForEach(category.candidates) { candidate in
+                    Button {
+                        choose(candidate.value)
+                    } label: {
+                        VStack(spacing: 5) {
+                            HabitIconGlyph(icon: candidate.value, size: candidate.value.isEmojiIcon ? 28 : 22)
+                                .foregroundStyle(selection == candidate.value ? Color.accentColor : .primary)
+                                .frame(height: 29)
+                            Text(candidate.name)
+                                .font(.system(size: 10, weight: .medium))
+                                .foregroundStyle(.secondary)
+                                .lineLimit(1)
+                                .minimumScaleFactor(0.72)
+                        }
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 62)
+                        .background(selection == candidate.value ? Color.accentColor.opacity(0.16) : Color.secondary.opacity(0.10), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                                .strokeBorder(selection == candidate.value ? Color.accentColor.opacity(0.55) : Color.clear, lineWidth: 1)
+                        )
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel(candidate.name)
+                }
+            }
         }
     }
 }
 
-private enum IconPickerMode: String, CaseIterable, Identifiable {
-    case emoji
-    case symbol
-
-    var id: String { rawValue }
-
-    var title: String {
-        switch self {
-        case .emoji: "表情"
-        case .symbol: "系统图标"
-        }
-    }
+private func isRenderableSystemSymbol(_ name: String) -> Bool {
+    #if canImport(UIKit)
+    return UIImage(systemName: name) != nil
+    #else
+    return !name.isEmpty
+    #endif
 }

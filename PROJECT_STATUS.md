@@ -5,6 +5,7 @@
 - iOS SwiftUI app with SwiftData local storage.
 - Designed-for-iPhone-on-Mac support through the iOS target.
 - Habit creation and editing: name, icon, color, card style, target weekdays, reminders, and image cards.
+- Icon picker with curated emoji and SF Symbols categories, search, and custom input.
 - Sticker-style habit cards on the home screen.
 - Local notification scheduling per habit.
 - Statistics: current streak, total completed days, monthly completion rate, and month heatmap.
@@ -23,6 +24,14 @@
 - Dynamic Island / Live Activities reminders. This should stay blocked unless the signing/account capability path is clear.
 - Full image crop UI. Current import does automatic center crop to the sticker ratio and compression.
 - GitHub Releases for IPA delivery. Source control comes first; IPA publishing can come later.
+
+## v0.1.0 Usable Release Criteria
+
+- Source is maintained in Git on `main`.
+- Xcode project builds for iOS Simulator.
+- Core smoke and stress tests pass.
+- The app remains free-signing friendly: no CloudKit, Push Notifications, Time Sensitive Notifications, or Live Activities entitlements.
+- IPA packaging is intentionally deferred.
 
 ## Free Signing Status
 

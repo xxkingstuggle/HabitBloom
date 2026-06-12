@@ -81,6 +81,10 @@ struct ContentView: View {
                         }
                         .contextMenu {
                             Button("编辑") { selectedHabit = habit }
+                            Button("上移") { move(habit, by: -1) }
+                                .disabled(index == 0)
+                            Button("下移") { move(habit, by: 1) }
+                                .disabled(index == habits.count - 1)
                             Button("删除", role: .destructive) { delete(habit) }
                         }
                     }
@@ -105,6 +109,22 @@ struct ContentView: View {
 
         try? modelContext.save()
         WidgetSnapshotWriter.write(habits: habits)
+    }
+
+    private func move(_ habit: HabitEntity, by offset: Int) {
+        var orderedHabits = habits
+        guard
+            let currentIndex = orderedHabits.firstIndex(where: { $0.id == habit.id }),
+            orderedHabits.indices.contains(currentIndex + offset)
+        else { return }
+
+        orderedHabits.swapAt(currentIndex, currentIndex + offset)
+        for (index, habit) in orderedHabits.enumerated() {
+            habit.sortOrder = index
+        }
+
+        try? modelContext.save()
+        WidgetSnapshotWriter.write(habits: orderedHabits)
     }
 
     private func delete(_ habit: HabitEntity) {
