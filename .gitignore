@@ -1,0 +1,25 @@
+.DS_Store
+
+# Xcode local state
+*.xcuserstate
+*.xcscmblueprint
+xcuserdata/
+DerivedData/
+.build/
+
+# Signing and provisioning secrets
+*.mobileprovision
+*.provisionprofile
+*.p12
+*.cer
+*.certSigningRequest
+
+# Generated build/test artifacts
+work/
+outputs/
+*.ipa
+*.xcarchive
+*.dSYM
+
+# SwiftPM
+.swiftpm/
