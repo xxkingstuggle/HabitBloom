@@ -11,6 +11,9 @@ settings:
     CODE_SIGN_STYLE: Automatic
     CURRENT_PROJECT_VERSION: 1
     MARKETING_VERSION: 1.0
+    HABITBLOOM_REMOTE_BASE_URL: ""
+    HABITBLOOM_REMOTE_DEVICE_KEY: ""
+    HABITBLOOM_REMOTE_WRITE_TOKEN: ""
 packages: {}
 targets:
   HabitBloom:

@@ -2,6 +2,8 @@ import SwiftUI
 
 struct HabitCardView: View {
     let habit: HabitEntity
+    let stats: HabitStatsViewModel
+    let isCompletedToday: Bool
     var feedbackLevel = 0
     var toggle: () -> Void
     @State private var bursts: [CheckInBurst] = []
@@ -18,14 +20,6 @@ struct HabitCardView: View {
 
     private var cardKind: HabitCardKind {
         HabitCardKind(rawValue: habit.cardStyle) ?? .soft
-    }
-
-    private var stats: HabitStatsViewModel {
-        HabitStatsService.stats(for: habit)
-    }
-
-    private var isCompletedToday: Bool {
-        HabitStatsService.isCompletedToday(habit)
     }
 
     private var usesImageBackground: Bool {

@@ -1,15 +1,12 @@
 import SwiftUI
 import SwiftData
-import UniformTypeIdentifiers
 
 struct SettingsView: View {
     @Environment(\.modelContext) private var modelContext
     @Query(sort: [SortDescriptor(\HabitEntity.sortOrder), SortDescriptor(\HabitEntity.createdAt)]) private var habits: [HabitEntity]
     @AppStorage("appTheme") private var appTheme: AppTheme = .system
-    @AppStorage("syncFolderBookmark") private var syncFolderBookmark = Data()
-    @AppStorage("syncFolderName") private var syncFolderName = ""
-    @State private var showingFolderPicker = false
-    @State private var syncMessage: String?
+    @State private var backupMessage: String?
+    @State private var isBackupBusy = false
 
     var body: some View {
         Form {
@@ -23,122 +20,71 @@ struct SettingsView: View {
 
             Section("数据") {
                 LabeledContent("存储", value: "本地设备")
-                LabeledContent("小组件共享", value: "本地 App Group")
+                LabeledContent("小组件", value: "Cloudflare 远程快照")
+                LabeledContent("备份", value: "云端文本备份")
             }
 
-            Section("手动同步") {
-                LabeledContent("同步文件夹", value: syncFolderName.isEmpty ? "未选择" : syncFolderName)
+            Section("云端备份") {
+                Button {
+                    uploadBackup()
+                } label: {
+                    Label("立即备份到服务器", systemImage: "icloud.and.arrow.up")
+                }
+                .disabled(isBackupBusy)
 
                 Button {
-                    showingFolderPicker = true
+                    restoreBackup()
                 } label: {
-                    Label(syncFolderName.isEmpty ? "选择 iCloud Drive 文件夹" : "更换同步文件夹", systemImage: "folder")
+                    Label("从服务器恢复", systemImage: "icloud.and.arrow.down")
                 }
+                .disabled(isBackupBusy)
 
-                Button {
-                    exportToSelectedFolder()
-                } label: {
-                    Label("导出到文件夹", systemImage: "square.and.arrow.up")
-                }
-                .disabled(syncFolderBookmark.isEmpty)
-
-                Button {
-                    importFromSelectedFolder()
-                } label: {
-                    Label("从文件夹导入", systemImage: "square.and.arrow.down")
-                }
-                .disabled(syncFolderBookmark.isEmpty)
-
-                if let syncMessage {
-                    Text(syncMessage)
+                if let backupMessage {
+                    Text(backupMessage)
                         .font(.footnote)
                         .foregroundStyle(.secondary)
                 }
             }
 
             Section("说明") {
-                Text("当前版本不使用 CloudKit。你可以选择 iCloud Drive 里的文件夹做手动同步，App 会在其中读写 habit-bloom.json。")
+                Text("云端备份只保存目标名、图标、频率、提醒和打卡记录；不上传图片、卡片配色和卡片样式。")
                     .foregroundStyle(.secondary)
             }
         }
         .navigationTitle("设置")
-        .fileImporter(
-            isPresented: $showingFolderPicker,
-            allowedContentTypes: [.folder],
-            allowsMultipleSelection: false
-        ) { result in
-            handleFolderSelection(result)
-        }
     }
 
-    private func handleFolderSelection(_ result: Result<[URL], Error>) {
-        do {
-            guard let url = try result.get().first else { return }
-            let didAccess = url.startAccessingSecurityScopedResource()
-            defer {
-                if didAccess { url.stopAccessingSecurityScopedResource() }
+    private func uploadBackup() {
+        isBackupBusy = true
+        backupMessage = "正在备份..."
+        Task {
+            do {
+                let archive = try await RemoteBackupService.uploadNow(habits: habits)
+                backupMessage = "已备份 \(archive.habits.count) 个目标"
+            } catch {
+                backupMessage = "备份失败：\(error.localizedDescription)"
             }
-
-            syncFolderBookmark = try url.bookmarkData(
-                options: [],
-                includingResourceValuesForKeys: nil,
-                relativeTo: nil
-            )
-            syncFolderName = url.lastPathComponent
-            syncMessage = "已选择 \(url.lastPathComponent)"
-        } catch {
-            syncMessage = "选择失败：\(error.localizedDescription)"
+            isBackupBusy = false
         }
     }
 
-    private func exportToSelectedFolder() {
-        do {
-            let url = try resolvedSyncFolderURL()
-            let didAccess = url.startAccessingSecurityScopedResource()
-            defer {
-                if didAccess { url.stopAccessingSecurityScopedResource() }
+    private func restoreBackup() {
+        isBackupBusy = true
+        backupMessage = "正在恢复..."
+        Task {
+            do {
+                let archive = try await RemoteBackupService.download()
+                let restoredHabits = try RemoteBackupService.restore(
+                    archive: archive,
+                    into: modelContext,
+                    existingHabits: habits
+                )
+                WidgetSnapshotWriter.scheduleWrite(habits: restoredHabits, delayMilliseconds: 0)
+                backupMessage = "已恢复 \(archive.habits.count) 个目标"
+            } catch {
+                backupMessage = "恢复失败：\(error.localizedDescription)"
             }
-
-            try ManualFolderSyncService.export(habits: habits, to: url)
-            syncMessage = "已导出 \(habits.count) 个目标"
-        } catch {
-            syncMessage = "导出失败：\(error.localizedDescription)"
+            isBackupBusy = false
         }
-    }
-
-    private func importFromSelectedFolder() {
-        do {
-            let url = try resolvedSyncFolderURL()
-            let didAccess = url.startAccessingSecurityScopedResource()
-            defer {
-                if didAccess { url.stopAccessingSecurityScopedResource() }
-            }
-
-            try ManualFolderSyncService.import(from: url, into: modelContext, existingHabits: habits)
-            WidgetSnapshotWriter.write(habits: habits)
-            syncMessage = "导入完成"
-        } catch {
-            syncMessage = "导入失败：\(error.localizedDescription)"
-        }
-    }
-
-    private func resolvedSyncFolderURL() throws -> URL {
-        var isStale = false
-        let url = try URL(
-            resolvingBookmarkData: syncFolderBookmark,
-            options: [],
-            relativeTo: nil,
-            bookmarkDataIsStale: &isStale
-        )
-
-        if isStale {
-            syncFolderBookmark = try url.bookmarkData(
-                options: [],
-                includingResourceValuesForKeys: nil,
-                relativeTo: nil
-            )
-        }
-
-        return url
     }
 }

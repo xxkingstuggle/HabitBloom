@@ -1,23 +1,50 @@
 import AppIntents
+import Foundation
 import SwiftUI
 import WidgetKit
 
 private let suiteName = "group.com.zjx.HabitBloom"
 private let snapshotsKey = "habitWidgetSnapshots"
+private let remoteSnapshotCacheKey = "remoteWidgetSnapshot"
+private let remoteRequestTimeout: TimeInterval = 2.5
+
+private enum RemoteWidgetConfig {
+    static let baseURLString = infoValue(for: "HBRemoteBaseURL")
+    static let deviceKey = infoValue(for: "HBRemoteDeviceKey")
+
+    static var isConfigured: Bool {
+        baseURLString.hasPrefix("https://")
+            && !baseURLString.contains("$(")
+            && !deviceKey.isEmpty
+            && !deviceKey.contains("$(")
+    }
+
+    private static func infoValue(for key: String) -> String {
+        guard let value = Bundle.main.object(forInfoDictionaryKey: key) as? String else { return "" }
+        return value.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+}
+
+struct WidgetRemoteSnapshot: Codable {
+    var deviceKey: String
+    var updatedAt: Date
+    var selectedHabitID: UUID?
+    var habits: [WidgetHabitSnapshot]
+}
 
 struct WidgetHabitSnapshot: Identifiable, Codable {
     var id: UUID
     var name: String
     var icon: String
     var colorName: String
-    var cardStyle: String?
+    var cardStyle: String? = nil
     var streakDays: Int
     var totalDays: Int
-    var completionRate: Double?
+    var completionRate: Double? = nil
     var isCompletedToday: Bool
-    var imageFileName: String?
-    var imageData: Data?
-    var updatedAt: Date?
+    var imageFileName: String? = nil
+    var imageData: Data? = nil
+    var updatedAt: Date? = nil
 
     var effectiveCardStyle: String {
         cardStyle ?? "soft"
@@ -65,24 +92,26 @@ struct HabitProvider: AppIntentTimelineProvider {
     }
 
     func snapshot(for configuration: HabitSelectionIntent, in context: Context) async -> HabitTimelineEntry {
-        HabitTimelineEntry(date: Date(), habits: loadSnapshots(), selectedHabitID: configuration.habit?.uuid, selectedHabitName: configuration.habit?.name)
+        let snapshot = await WidgetSnapshotStore.loadSnapshot(reason: "single snapshot")
+        return HabitTimelineEntry(
+            date: Date(),
+            habits: snapshot.habits,
+            selectedHabitID: configuration.habit?.uuid ?? snapshot.selectedHabitID,
+            selectedHabitName: configuration.habit?.name
+        )
     }
 
     func timeline(for configuration: HabitSelectionIntent, in context: Context) async -> Timeline<HabitTimelineEntry> {
-        let entry = HabitTimelineEntry(date: Date(), habits: loadSnapshots(), selectedHabitID: configuration.habit?.uuid, selectedHabitName: configuration.habit?.name)
+        widgetLog("TimelineProvider start selectedID=\(configuration.habit?.id ?? "nil")")
+        let snapshot = await WidgetSnapshotStore.loadSnapshot(reason: "single timeline")
+        widgetLog("TimelineProvider loaded updatedAt=\(snapshot.updatedAt.iso8601LogString) selectedID=\(configuration.habit?.id ?? snapshot.selectedHabitID?.uuidString ?? "nil") habits=\(snapshot.habits.count)")
+        let entry = HabitTimelineEntry(
+            date: Date(),
+            habits: snapshot.habits,
+            selectedHabitID: configuration.habit?.uuid ?? snapshot.selectedHabitID,
+            selectedHabitName: configuration.habit?.name
+        )
         return Timeline(entries: [entry], policy: .after(Date().addingTimeInterval(900)))
-    }
-
-    private func loadSnapshots() -> [WidgetHabitSnapshot] {
-        guard
-            let data = UserDefaults(suiteName: suiteName)?.data(forKey: snapshotsKey),
-            let snapshots = try? JSONDecoder().decode([WidgetHabitSnapshot].self, from: data),
-            !snapshots.isEmpty
-        else {
-            return [.placeholder]
-        }
-
-        return snapshots
     }
 }
 
@@ -92,24 +121,20 @@ struct SimpleHabitProvider: TimelineProvider {
     }
 
     func getSnapshot(in context: Context, completion: @escaping (HabitTimelineEntry) -> Void) {
-        completion(HabitTimelineEntry(date: Date(), habits: loadSnapshots(), selectedHabitID: nil, selectedHabitName: nil))
+        nonisolated(unsafe) let completion = completion
+        Task {
+            let snapshot = await WidgetSnapshotStore.loadSnapshot(reason: "simple snapshot")
+            completion(HabitTimelineEntry(date: Date(), habits: snapshot.habits, selectedHabitID: snapshot.selectedHabitID, selectedHabitName: nil))
+        }
     }
 
     func getTimeline(in context: Context, completion: @escaping (Timeline<HabitTimelineEntry>) -> Void) {
-        let entry = HabitTimelineEntry(date: Date(), habits: loadSnapshots(), selectedHabitID: nil, selectedHabitName: nil)
-        completion(Timeline(entries: [entry], policy: .after(Date().addingTimeInterval(900))))
-    }
-
-    private func loadSnapshots() -> [WidgetHabitSnapshot] {
-        guard
-            let data = UserDefaults(suiteName: suiteName)?.data(forKey: snapshotsKey),
-            let snapshots = try? JSONDecoder().decode([WidgetHabitSnapshot].self, from: data),
-            !snapshots.isEmpty
-        else {
-            return [.placeholder]
+        nonisolated(unsafe) let completion = completion
+        Task {
+            let snapshot = await WidgetSnapshotStore.loadSnapshot(reason: "simple timeline")
+            let entry = HabitTimelineEntry(date: Date(), habits: snapshot.habits, selectedHabitID: snapshot.selectedHabitID, selectedHabitName: nil)
+            completion(Timeline(entries: [entry], policy: .after(Date().addingTimeInterval(900))))
         }
-
-        return snapshots
     }
 }
 
@@ -138,27 +163,118 @@ struct HabitWidgetEntity: AppEntity {
 
 struct HabitWidgetEntityQuery: EntityQuery {
     func entities(for identifiers: [String]) async throws -> [HabitWidgetEntity] {
-        loadWidgetEntities().filter { identifiers.contains($0.id) }
+        let entities = await loadWidgetEntities(reason: "entities")
+        return entities.filter { identifiers.contains($0.id) }
     }
 
     func suggestedEntities() async throws -> [HabitWidgetEntity] {
-        loadWidgetEntities()
+        await loadWidgetEntities(reason: "suggested")
     }
 
     func defaultResult() async -> HabitWidgetEntity? {
-        loadWidgetEntities().first
+        await loadWidgetEntities(reason: "default").first
     }
 
-    private func loadWidgetEntities() -> [HabitWidgetEntity] {
-        guard
-            let data = UserDefaults(suiteName: suiteName)?.data(forKey: snapshotsKey),
-            let snapshots = try? JSONDecoder().decode([WidgetHabitSnapshot].self, from: data)
-        else {
-            return [HabitWidgetEntity(id: WidgetHabitSnapshot.placeholder.id.uuidString, name: WidgetHabitSnapshot.placeholder.name, detail: "连续 \(WidgetHabitSnapshot.placeholder.streakDays) 天")]
+    private func loadWidgetEntities(reason: String) async -> [HabitWidgetEntity] {
+        let snapshot = await WidgetSnapshotStore.loadSnapshot(reason: "options \(reason)")
+        return snapshot.habits.map {
+            HabitWidgetEntity(id: $0.id.uuidString, name: $0.name, detail: "连续 \($0.streakDays) 天")
+        }
+    }
+}
+
+private enum WidgetSnapshotStore {
+    static func loadSnapshot(reason: String) async -> WidgetRemoteSnapshot {
+        if let remote = await RemoteWidgetClient.fetchSnapshot(reason: reason) {
+            cache(remote)
+            widgetLog("using remote reason=\(reason) updatedAt=\(remote.updatedAt.iso8601LogString) selectedID=\(remote.selectedHabitID?.uuidString ?? "nil")")
+            if !remote.habits.isEmpty {
+                return remote
+            }
+            return placeholderSnapshot(reason: reason)
         }
 
-        return snapshots.map {
-            HabitWidgetEntity(id: $0.id.uuidString, name: $0.name, detail: "连续 \($0.streakDays) 天")
+        if let cached = cachedSnapshot(), !cached.habits.isEmpty {
+            widgetLog("using widget cache reason=\(reason) updatedAt=\(cached.updatedAt.iso8601LogString) selectedID=\(cached.selectedHabitID?.uuidString ?? "nil")")
+            return cached
+        }
+
+        if let appGroup = appGroupSnapshot(), !appGroup.habits.isEmpty {
+            widgetLog("using App Group fallback reason=\(reason) habits=\(appGroup.habits.count)")
+            return appGroup
+        }
+
+        return placeholderSnapshot(reason: reason)
+    }
+
+    private static func placeholderSnapshot(reason: String) -> WidgetRemoteSnapshot {
+        widgetLog("using placeholder reason=\(reason)")
+        return WidgetRemoteSnapshot(
+            deviceKey: RemoteWidgetConfig.deviceKey,
+            updatedAt: Date(),
+            selectedHabitID: WidgetHabitSnapshot.placeholder.id,
+            habits: [.placeholder]
+        )
+    }
+
+    private static func cache(_ snapshot: WidgetRemoteSnapshot) {
+        guard let data = try? widgetJSONEncoder.encode(snapshot) else { return }
+        UserDefaults.standard.set(data, forKey: remoteSnapshotCacheKey)
+    }
+
+    private static func cachedSnapshot() -> WidgetRemoteSnapshot? {
+        guard let data = UserDefaults.standard.data(forKey: remoteSnapshotCacheKey) else { return nil }
+        return try? widgetJSONDecoder.decode(WidgetRemoteSnapshot.self, from: data)
+    }
+
+    private static func appGroupSnapshot() -> WidgetRemoteSnapshot? {
+        guard
+            let data = UserDefaults(suiteName: suiteName)?.data(forKey: snapshotsKey),
+            let snapshots = try? widgetJSONDecoder.decode([WidgetHabitSnapshot].self, from: data)
+        else { return nil }
+
+        return WidgetRemoteSnapshot(
+            deviceKey: RemoteWidgetConfig.deviceKey,
+            updatedAt: snapshots.map(\.updatedAt).compactMap { $0 }.max() ?? Date(),
+            selectedHabitID: snapshots.first?.id,
+            habits: snapshots
+        )
+    }
+}
+
+private enum RemoteWidgetClient {
+    static func fetchSnapshot(reason: String) async -> WidgetRemoteSnapshot? {
+        guard RemoteWidgetConfig.isConfigured else {
+            widgetLog("remote GET skipped: config missing reason=\(reason)")
+            return nil
+        }
+        guard var components = URLComponents(string: RemoteWidgetConfig.baseURLString) else {
+            widgetLog("remote GET skipped: invalid base URL")
+            return nil
+        }
+
+        components.path = "/v1/snapshot/\(RemoteWidgetConfig.deviceKey)"
+        guard let url = components.url else {
+            widgetLog("remote GET skipped: invalid URL")
+            return nil
+        }
+
+        do {
+            var request = URLRequest(url: url)
+            request.timeoutInterval = remoteRequestTimeout
+            request.setValue("no-store", forHTTPHeaderField: "Cache-Control")
+            let startedAt = Date()
+            let (data, response) = try await URLSession.shared.data(for: request)
+            guard let http = response as? HTTPURLResponse, 200..<300 ~= http.statusCode else {
+                widgetLog("remote GET failed: bad status reason=\(reason)")
+                return nil
+            }
+            let snapshot = try widgetJSONDecoder.decode(WidgetRemoteSnapshot.self, from: data)
+            widgetLog("remote GET ok reason=\(reason) elapsed=\(Date().timeIntervalSince(startedAt))s updatedAt=\(snapshot.updatedAt.iso8601LogString) habits=\(snapshot.habits.count)")
+            return snapshot
+        } catch {
+            widgetLog("remote GET failed reason=\(reason): \(error.localizedDescription)")
+            return nil
         }
     }
 }
@@ -527,16 +643,17 @@ struct HabitBloomWidgetBundle: WidgetBundle {
 private extension WidgetHabitSnapshot {
     static let placeholder = WidgetHabitSnapshot(
         id: UUID(),
-        name: "晨间阅读",
-        icon: "book.closed.fill",
+        name: "打开 App 刷新",
+        icon: "arrow.triangle.2.circlepath",
         colorName: "mint",
         cardStyle: "soft",
-        streakDays: 7,
-        totalDays: 21,
-        completionRate: 0.72,
-        isCompletedToday: true,
+        streakDays: 0,
+        totalDays: 0,
+        completionRate: 0.0,
+        isCompletedToday: false,
         imageFileName: nil,
-        imageData: nil
+        imageData: nil,
+        updatedAt: Date()
     )
 
     var usesImageBackground: Bool {
@@ -560,6 +677,28 @@ private extension String {
         count <= 4 && unicodeScalars.contains { scalar in
             scalar.properties.isEmojiPresentation || scalar.properties.isEmoji
         }
+    }
+}
+
+private let widgetJSONDecoder: JSONDecoder = {
+    let decoder = JSONDecoder()
+    decoder.dateDecodingStrategy = .iso8601
+    return decoder
+}()
+
+private let widgetJSONEncoder: JSONEncoder = {
+    let encoder = JSONEncoder()
+    encoder.dateEncodingStrategy = .iso8601
+    return encoder
+}()
+
+private func widgetLog(_ message: String) {
+    print("[HabitBloomWidgetRemote] \(Date().iso8601LogString) \(message)")
+}
+
+private extension Date {
+    var iso8601LogString: String {
+        ISO8601DateFormatter().string(from: self)
     }
 }
 

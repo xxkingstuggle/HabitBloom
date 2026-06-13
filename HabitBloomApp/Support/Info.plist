@@ -18,6 +18,12 @@
     <string>$(MARKETING_VERSION)</string>
     <key>CFBundleVersion</key>
     <string>$(CURRENT_PROJECT_VERSION)</string>
+    <key>HBRemoteBaseURL</key>
+    <string>$(HABITBLOOM_REMOTE_BASE_URL)</string>
+    <key>HBRemoteDeviceKey</key>
+    <string>$(HABITBLOOM_REMOTE_DEVICE_KEY)</string>
+    <key>HBRemoteWriteToken</key>
+    <string>$(HABITBLOOM_REMOTE_WRITE_TOKEN)</string>
     <key>NSPhotoLibraryUsageDescription</key>
     <string>用于选择目标卡片和小组件的自定义图片。</string>
     <key>UILaunchStoryboardName</key>

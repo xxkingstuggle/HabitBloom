@@ -2,12 +2,13 @@ import SwiftUI
 
 struct StatsView: View {
     let habits: [HabitEntity]
+    let statsByHabitID: [UUID: HabitStatsViewModel]
 
     var body: some View {
         ScrollView {
             LazyVStack(spacing: 16) {
                 ForEach(habits) { habit in
-                    let stats = HabitStatsService.stats(for: habit)
+                    let stats = statsByHabitID[habit.id] ?? .empty
                     VStack(alignment: .leading, spacing: 14) {
                         HStack {
                             Label(habit.name, systemImage: habit.icon)

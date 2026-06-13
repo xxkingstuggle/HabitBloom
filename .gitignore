@@ -23,3 +23,14 @@ outputs/
 
 # SwiftPM
 .swiftpm/
+
+# Cloudflare local secrets
+cloudflare/**/.dev.vars
+cloudflare/**/.wrangler/
+cloudflare/**/node_modules/
+
+# Local remote-sync configuration
+.env
+*.env
+*.local.xcconfig
+Config/RemoteConfig.xcconfig

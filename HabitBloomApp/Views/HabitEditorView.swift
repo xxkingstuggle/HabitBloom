@@ -160,7 +160,7 @@ struct HabitEditorView: View {
         if !snapshotHabits.contains(where: { $0.id == target.id }) {
             snapshotHabits.append(target)
         }
-        WidgetSnapshotWriter.write(habits: snapshotHabits)
+        WidgetSnapshotWriter.scheduleWrite(habits: snapshotHabits)
         let reminderSnapshot = ReminderScheduleSnapshot(habit: target)
         Task { await ReminderScheduler.reschedule(for: reminderSnapshot) }
         dismiss()

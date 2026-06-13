@@ -22,7 +22,7 @@ The smoke test catches basic logic regressions. The stress test simulates hundre
 - Toggle today's check-in repeatedly and confirm stats update.
 - Change widget-selected habit and confirm the displayed habit changes.
 - Set reminders and confirm notification scheduling still works.
-- Export and import a manual sync folder.
+- Use Settings to upload a cloud backup and restore from the server.
 
 ## Long-Term Stability Checks
 
@@ -30,3 +30,4 @@ The smoke test catches basic logic regressions. The stress test simulates hundre
 - Test with multiple image-card habits.
 - Confirm widget refresh does not rewrite unchanged images every time.
 - Confirm the app launches quickly after many check-ins.
+- Confirm cloud backup stays small because it excludes custom image data.

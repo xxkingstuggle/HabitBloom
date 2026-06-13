@@ -11,8 +11,8 @@ final class CheckInFeedbackService {
 
     private var activePlayers: [AVAudioPlayer] = []
     private var cachedSounds: [FeedbackSoundKey: Data] = [:]
+    private var pendingSoundKeys = Set<FeedbackSoundKey>()
     private var hapticEngine: CHHapticEngine?
-    private let sampleRate = 44_100
 
     private init() {}
 
@@ -28,52 +28,41 @@ final class CheckInFeedbackService {
 
         let clampedLevel = min(max(level, 0), 9)
         let key = FeedbackSoundKey(completing: completing, level: clampedLevel)
-        let data = cachedSounds[key] ?? {
-            let sound = makeLayeredSoundData(completing: completing, level: clampedLevel) ?? Data()
-            cachedSounds[key] = sound
-            return sound
-        }()
 
+        if let data = cachedSounds[key] {
+            playSound(data)
+            return
+        }
+
+        generateSoundIfNeeded(for: key)
+    }
+
+    private func playSound(_ data: Data) {
         guard !data.isEmpty, let player = try? AVAudioPlayer(data: data) else { return }
         player.prepareToPlay()
         player.play()
         activePlayers.append(player)
     }
 
-    private func pruneFinishedPlayers() {
-        activePlayers.removeAll { !$0.isPlaying }
+    private func generateSoundIfNeeded(for key: FeedbackSoundKey) {
+        guard pendingSoundKeys.insert(key).inserted else { return }
+        Task.detached(priority: .userInitiated) {
+            let data = FeedbackSoundRenderer.makeLayeredSoundData(
+                completing: key.completing,
+                level: key.level
+            ) ?? Data()
+            await CheckInFeedbackService.shared.cacheGeneratedSound(data, for: key)
+        }
     }
 
-    private func makeLayeredSoundData(completing: Bool, level: Int) -> Data? {
-        let scale: [Double] = [0, 2, 4, 7, 9, 12, 14, 16, 19, 21]
-        let semitone = scale[min(level, scale.count - 1)]
-        let baseFrequency = completing ? 520.0 : 320.0
-        let frequency = baseFrequency * pow(2.0, semitone / 12.0)
-        let duration = completing ? 0.24 : 0.13
-        let gain = completing ? min(0.92, 0.46 + Double(level) * 0.035) : 0.30
+    private func cacheGeneratedSound(_ data: Data, for key: FeedbackSoundKey) {
+        pendingSoundKeys.remove(key)
+        cachedSounds[key] = data
+        playSound(data)
+    }
 
-        let sampleCount = max(1, Int(Double(sampleRate) * duration))
-        var samples = [Int16]()
-        samples.reserveCapacity(sampleCount)
-
-        for index in 0..<sampleCount {
-            let t = Double(index) / Double(sampleRate)
-            let progress = Double(index) / Double(sampleCount)
-            let attack = min(1.0, progress / 0.035)
-            let decay = pow(1.0 - progress, completing ? 2.2 : 3.8)
-            let envelope = attack * decay
-
-            let clickWindow = max(0, 1.0 - progress / 0.12)
-            let click = sin(2.0 * .pi * frequency * 5.7 * t) * clickWindow * 0.34
-            let ping = sin(2.0 * .pi * frequency * t)
-            let shimmer = sin(2.0 * .pi * frequency * 2.38 * t) * 0.22
-            let air = sin(2.0 * .pi * frequency * 3.04 * t) * pow(1.0 - progress, 5.0) * 0.18
-            let downward = completing ? 0 : sin(2.0 * .pi * (frequency * (1.0 - progress * 0.18)) * t) * 0.24
-            let value = (click + ping + shimmer + air + downward) * envelope * gain
-            samples.append(Int16(max(-1, min(1, value)) * Double(Int16.max)))
-        }
-
-        return wavData(samples: samples, sampleRate: sampleRate)
+    private func pruneFinishedPlayers() {
+        activePlayers.removeAll { !$0.isPlaying }
     }
 
     private func playHaptics(completing: Bool, level: Int) {
@@ -115,7 +104,44 @@ final class CheckInFeedbackService {
         }
     }
 
-    private func wavData(samples: [Int16], sampleRate: Int) -> Data {
+}
+
+private enum FeedbackSoundRenderer {
+    private static let sampleRate = 44_100
+
+    static func makeLayeredSoundData(completing: Bool, level: Int) -> Data? {
+        let scale: [Double] = [0, 2, 4, 7, 9, 12, 14, 16, 19, 21]
+        let semitone = scale[min(level, scale.count - 1)]
+        let baseFrequency = completing ? 520.0 : 320.0
+        let frequency = baseFrequency * pow(2.0, semitone / 12.0)
+        let duration = completing ? 0.24 : 0.13
+        let gain = completing ? min(0.92, 0.46 + Double(level) * 0.035) : 0.30
+
+        let sampleCount = max(1, Int(Double(sampleRate) * duration))
+        var samples = [Int16]()
+        samples.reserveCapacity(sampleCount)
+
+        for index in 0..<sampleCount {
+            let t = Double(index) / Double(sampleRate)
+            let progress = Double(index) / Double(sampleCount)
+            let attack = min(1.0, progress / 0.035)
+            let decay = pow(1.0 - progress, completing ? 2.2 : 3.8)
+            let envelope = attack * decay
+
+            let clickWindow = max(0, 1.0 - progress / 0.12)
+            let click = sin(2.0 * .pi * frequency * 5.7 * t) * clickWindow * 0.34
+            let ping = sin(2.0 * .pi * frequency * t)
+            let shimmer = sin(2.0 * .pi * frequency * 2.38 * t) * 0.22
+            let air = sin(2.0 * .pi * frequency * 3.04 * t) * pow(1.0 - progress, 5.0) * 0.18
+            let downward = completing ? 0 : sin(2.0 * .pi * (frequency * (1.0 - progress * 0.18)) * t) * 0.24
+            let value = (click + ping + shimmer + air + downward) * envelope * gain
+            samples.append(Int16(max(-1, min(1, value)) * Double(Int16.max)))
+        }
+
+        return wavData(samples: samples, sampleRate: sampleRate)
+    }
+
+    private static func wavData(samples: [Int16], sampleRate: Int) -> Data {
         var data = Data()
         let byteRate = sampleRate * 2
         let blockAlign: UInt16 = 2
@@ -143,13 +169,13 @@ final class CheckInFeedbackService {
         return data
     }
 
-    private func littleEndianData<T: FixedWidthInteger>(_ value: T) -> Data {
+    private static func littleEndianData<T: FixedWidthInteger>(_ value: T) -> Data {
         var littleEndian = value.littleEndian
         return Data(bytes: &littleEndian, count: MemoryLayout<T>.size)
     }
 }
 
-private struct FeedbackSoundKey: Hashable {
+private struct FeedbackSoundKey: Hashable, Sendable {
     let completing: Bool
     let level: Int
 }

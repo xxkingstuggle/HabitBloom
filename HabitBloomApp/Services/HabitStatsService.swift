@@ -5,6 +5,13 @@ struct HabitStatsViewModel {
     var totalCompletedDays: Int
     var monthCompletionRate: Double
     var monthDays: [(date: Date, isCompleted: Bool)]
+
+    static let empty = HabitStatsViewModel(
+        currentStreak: 0,
+        totalCompletedDays: 0,
+        monthCompletionRate: 0,
+        monthDays: []
+    )
 }
 
 enum HabitStatsService {
@@ -12,7 +19,7 @@ enum HabitStatsService {
         let completedDays = Set(
             (habit.checkIns ?? [])
                 .filter(\.isCompleted)
-                .map { calendar.startOfDay(for: $0.day) }
+                .map(\.day)
         )
         let normalizedToday = calendar.startOfDay(for: today)
         let targetWeekdays = WeekdayMask.weekdays(from: habit.targetWeekdayMask)
@@ -32,7 +39,7 @@ enum HabitStatsService {
 
     static func isCompletedToday(_ habit: HabitEntity, today: Date = Date(), calendar: Calendar = .current) -> Bool {
         let day = calendar.startOfDay(for: today)
-        return (habit.checkIns ?? []).contains { calendar.isDate($0.day, inSameDayAs: day) && $0.isCompleted }
+        return (habit.checkIns ?? []).contains { $0.day == day && $0.isCompleted }
     }
 
     private static func currentStreak(endingAt today: Date, completedDays: Set<Date>, targetWeekdays: [Int], calendar: Calendar) -> Int {

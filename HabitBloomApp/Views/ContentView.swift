@@ -3,10 +3,13 @@ import SwiftUI
 
 struct ContentView: View {
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.scenePhase) private var scenePhase
     @Query(sort: [SortDescriptor(\HabitEntity.sortOrder), SortDescriptor(\HabitEntity.createdAt)]) private var habits: [HabitEntity]
     @State private var showingEditor = false
     @State private var selectedHabit: HabitEntity?
     @State private var selectedTab = MainTab.home
+    @State private var statsByHabitID: [UUID: HabitStatsViewModel] = [:]
+    @State private var completedTodayByHabitID: [UUID: Bool] = [:]
 
     var body: some View {
         TabView(selection: $selectedTab) {
@@ -30,7 +33,7 @@ struct ContentView: View {
             .tag(MainTab.home)
 
             NavigationStack {
-                StatsView(habits: habits)
+                StatsView(habits: habits, statsByHabitID: statsByHabitID)
             }
             .tabItem {
                 Label("统计", systemImage: "chart.bar.xaxis")
@@ -46,18 +49,25 @@ struct ContentView: View {
             .tag(MainTab.settings)
         }
         .tint(.accentColor)
-        .sheet(isPresented: $showingEditor) {
+        .sheet(isPresented: $showingEditor, onDismiss: {
+            refreshDerivedStateAndWidgets()
+        }) {
             HabitEditorView(habit: nil)
         }
-        .sheet(item: $selectedHabit) { habit in
+        .sheet(item: $selectedHabit, onDismiss: {
+            refreshDerivedStateAndWidgets()
+        }) { habit in
             HabitEditorView(habit: habit)
         }
         .task {
-            seedSampleHabitIfNeeded()
-            WidgetSnapshotWriter.write(habits: habits)
+            refreshDerivedStateAndWidgets()
         }
-        .onChange(of: habits.map(\.id)) {
-            WidgetSnapshotWriter.write(habits: habits)
+        .onChange(of: scenePhase) { _, phase in
+            if phase == .active {
+                refreshDerivedStateAndWidgets()
+            } else if phase == .background {
+                refreshDerivedStateAndWidgets(delayMilliseconds: 0)
+            }
         }
     }
 
@@ -70,10 +80,19 @@ struct ContentView: View {
         } else {
             ScrollView {
                 LazyVStack(spacing: 14) {
-                    TodaySummaryHeader(habits: habits)
+                    TodaySummaryHeader(
+                        totalCount: habits.count,
+                        completedToday: habits.filter { completedTodayByHabitID[$0.id] == true }.count,
+                        bestStreak: habits.compactMap { statsByHabitID[$0.id]?.currentStreak }.max() ?? 0
+                    )
 
                     ForEach(Array(habits.enumerated()), id: \.element.id) { index, habit in
-                        HabitCardView(habit: habit, feedbackLevel: index) {
+                        HabitCardView(
+                            habit: habit,
+                            stats: statsByHabitID[habit.id] ?? .empty,
+                            isCompletedToday: completedTodayByHabitID[habit.id] ?? false,
+                            feedbackLevel: index
+                        ) {
                             toggleToday(for: habit)
                         }
                         .onTapGesture {
@@ -99,16 +118,26 @@ struct ContentView: View {
 
     private func toggleToday(for habit: HabitEntity) {
         let today = Calendar.current.startOfDay(for: Date())
-        if let existing = (habit.checkIns ?? []).first(where: { Calendar.current.isDate($0.day, inSameDayAs: today) }) {
+        let willComplete: Bool
+        if let existing = (habit.checkIns ?? []).first(where: { $0.day == today }) {
             existing.isCompleted.toggle()
+            willComplete = existing.isCompleted
         } else {
             var checkIns = habit.checkIns ?? []
             checkIns.append(CheckInEntity(day: today, habit: habit))
             habit.checkIns = checkIns
+            willComplete = true
         }
 
         try? modelContext.save()
-        WidgetSnapshotWriter.write(habits: habits)
+        let derived = refreshDerivedState(habits: habits)
+        WidgetSnapshotWriter.scheduleCheckIn(
+            habitID: habit.id,
+            isCompletedToday: willComplete,
+            habits: habits,
+            statsByHabitID: derived.stats,
+            completedTodayByHabitID: derived.completedToday
+        )
     }
 
     private func move(_ habit: HabitEntity, by offset: Int) {
@@ -124,29 +153,41 @@ struct ContentView: View {
         }
 
         try? modelContext.save()
-        WidgetSnapshotWriter.write(habits: orderedHabits)
+        refreshDerivedStateAndWidgets(habits: orderedHabits, delayMilliseconds: 0)
     }
 
     private func delete(_ habit: HabitEntity) {
         modelContext.delete(habit)
         try? modelContext.save()
-        WidgetSnapshotWriter.write(habits: habits)
+        refreshDerivedStateAndWidgets(delayMilliseconds: 0)
     }
 
-    private func seedSampleHabitIfNeeded() {
-        let samples = [
-            HabitEntity(id: UUID(uuidString: "00000000-0000-4000-8000-000000000101")!, name: "晨间阅读", icon: "📚", colorName: "mint", cardStyle: "soft", reminderEnabled: false, reminderHour: 21, sortOrder: 0),
-            HabitEntity(id: UUID(uuidString: "00000000-0000-4000-8000-000000000102")!, name: "喝水", icon: "💧", colorName: "teal", cardStyle: "glass", reminderEnabled: false, reminderHour: 10, sortOrder: 1),
-            HabitEntity(id: UUID(uuidString: "00000000-0000-4000-8000-000000000103")!, name: "拉伸", icon: "figure.flexibility", colorName: "amber", cardStyle: "minimal", reminderEnabled: false, reminderHour: 18, sortOrder: 2),
-            HabitEntity(id: UUID(uuidString: "00000000-0000-4000-8000-000000000104")!, name: "冥想", icon: "🧘", colorName: "indigo", cardStyle: "soft", reminderEnabled: false, reminderHour: 22, sortOrder: 3),
-            HabitEntity(id: UUID(uuidString: "00000000-0000-4000-8000-000000000105")!, name: "记账", icon: "💰", colorName: "rose", cardStyle: "glass", reminderEnabled: false, reminderHour: 20, sortOrder: 4)
-        ]
-        let existingNames = Set(habits.map(\.name))
-        samples
-            .filter { !existingNames.contains($0.name) }
-            .forEach { modelContext.insert($0) }
-        try? modelContext.save()
+    private func refreshDerivedStateAndWidgets(habits sourceHabits: [HabitEntity]? = nil, delayMilliseconds: UInt64 = 80) {
+        let sourceHabits = sourceHabits ?? habits
+        let derived = refreshDerivedState(habits: sourceHabits)
+        WidgetSnapshotWriter.scheduleWrite(
+            habits: sourceHabits,
+            statsByHabitID: derived.stats,
+            completedTodayByHabitID: derived.completedToday,
+            delayMilliseconds: delayMilliseconds
+        )
     }
+
+    @discardableResult
+    private func refreshDerivedState(habits sourceHabits: [HabitEntity]) -> (stats: [UUID: HabitStatsViewModel], completedToday: [UUID: Bool]) {
+        var nextStats: [UUID: HabitStatsViewModel] = [:]
+        var nextCompletedToday: [UUID: Bool] = [:]
+
+        for habit in sourceHabits {
+            nextStats[habit.id] = HabitStatsService.stats(for: habit)
+            nextCompletedToday[habit.id] = HabitStatsService.isCompletedToday(habit)
+        }
+
+        statsByHabitID = nextStats
+        completedTodayByHabitID = nextCompletedToday
+        return (nextStats, nextCompletedToday)
+    }
+
 }
 
 private enum MainTab: Hashable {
@@ -188,15 +229,9 @@ private struct EmptyHabitView: View {
 }
 
 private struct TodaySummaryHeader: View {
-    let habits: [HabitEntity]
-
-    private var completedToday: Int {
-        habits.filter { HabitStatsService.isCompletedToday($0) }.count
-    }
-
-    private var bestStreak: Int {
-        habits.map { HabitStatsService.stats(for: $0).currentStreak }.max() ?? 0
-    }
+    let totalCount: Int
+    let completedToday: Int
+    let bestStreak: Int
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
@@ -217,7 +252,7 @@ private struct TodaySummaryHeader: View {
             }
 
             HStack(spacing: 12) {
-                SummaryChip(title: "完成", value: "\(completedToday)/\(habits.count)", icon: "checkmark.circle.fill", tint: .green)
+                SummaryChip(title: "完成", value: "\(completedToday)/\(totalCount)", icon: "checkmark.circle.fill", tint: .green)
                 SummaryChip(title: "最好连续", value: "\(bestStreak) 天", icon: "flame.fill", tint: .orange)
             }
         }

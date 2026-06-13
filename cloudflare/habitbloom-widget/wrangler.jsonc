@@ -1,0 +1,22 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "habitbloom-widget",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-06-13",
+  "workers_dev": true,
+  "vars": {},
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "HABIT_SNAPSHOT",
+        "class_name": "HabitSnapshotObject"
+      }
+    ]
+  },
+  "migrations": [
+    {
+      "tag": "v1",
+      "new_sqlite_classes": ["HabitSnapshotObject"]
+    }
+  ]
+}

@@ -6,14 +6,14 @@ This project is intended to work with local/free Apple signing for personal side
 
 | Capability | Used By | Current Status | Free Apple Developer Risk |
 | --- | --- | --- | --- |
-| App Groups | App + Widgets | Enabled: `group.com.zjx.HabitBloom` | Apple lists App Groups as available for Apple Developer accounts on iOS. Keep this because widgets need shared snapshots. |
+| App Groups | App + Widgets | Enabled: `group.com.zjx.HabitBloom` | Kept as a local/Xcode fallback. Real-device sideload builds use Cloudflare remote snapshots because third-party resigning can make App Group sharing unreliable. |
 | CloudKit / iCloud containers | Not used | Removed | Do not enable unless a paid Apple Developer Program account is available. |
 | Push Notifications | Not used | No `aps-environment` entitlement | Do not enable for the current self-signed build. |
 | Local Notifications | App | Runtime permission only | OK. Uses `UserNotifications`; this is not the Push Notifications entitlement. |
 | Time Sensitive Notifications | Not used | Not enabled | Avoid for now. |
 | Live Activities / Dynamic Island | Not used | Not enabled | Avoid for now. It adds capability and review/signing complexity. |
 | Photos | App | `NSPhotoLibraryUsageDescription` present | OK. User selects images through the system picker. |
-| Manual folder sync | App | Uses file importer and security-scoped bookmarks | OK. User chooses a folder; no CloudKit container entitlement is used. |
+| Cloudflare text backup | App | HTTPS requests only | OK. No Apple entitlement required. Does not use CloudKit containers. |
 
 ## Checked Project Files
 

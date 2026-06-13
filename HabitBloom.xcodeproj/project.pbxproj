@@ -8,7 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		0614F98A37FB16F28AA9F025 /* HabitIconGlyph.swift in Sources */ = {isa = PBXBuildFile; fileRef = B38117FF4902E6BB989DB05D /* HabitIconGlyph.swift */; };
-		1A41396267D74609D7538D1B /* ManualFolderSyncService.swift in Sources */ = {isa = PBXBuildFile; fileRef = DCFB9D4DB538157F5A89D874 /* ManualFolderSyncService.swift */; };
+		1A41396267D74609D7538D1B /* RemoteBackupService.swift in Sources */ = {isa = PBXBuildFile; fileRef = DCFB9D4DB538157F5A89D874 /* RemoteBackupService.swift */; };
 		1C6C3F03D9D957834F2BF9AE /* StatsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A88C53DDFA092F3E80752845 /* StatsView.swift */; };
 		1EB8B914F61A595782A5EB80 /* HabitModelContainer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4E7CC2D8216B50873CBB20A1 /* HabitModelContainer.swift */; };
 		2548E69FEA0E95AEF5CF8CAC /* HabitBloomWidgets.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0543C8E2EAC7CB98063BD6CF /* HabitBloomWidgets.swift */; };
@@ -25,6 +25,7 @@
 		7D05D134BA993118331AE2C3 /* HabitEditorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4107A7C2B23C184B009803FC /* HabitEditorView.swift */; };
 		90DE6B97845E3D13BF23BCE5 /* StickerImageOptimizer.swift in Sources */ = {isa = PBXBuildFile; fileRef = DCF4604AFDB8EFBF839B0FAE /* StickerImageOptimizer.swift */; };
 		933A32199A963DE7EC5E87CB /* PlatformColors.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB0162740D1F7021F3AA7256 /* PlatformColors.swift */; };
+		A35D7D3D9C7841C09E34C602 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = A35D7D3D9C7841C09E34C601 /* Assets.xcassets */; };
 		B004B71567A8C1EBF851DC69 /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = DCB5FD2FE83A7CB380A23971 /* LaunchScreen.storyboard */; };
 		BFBC7971F5DFF6DCF1B4D11E /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2245981D41A66EE9FCC2B135 /* SettingsView.swift */; };
 		C5FBA66CD35CA69BD2426C1D /* HabitBloomWidgets.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 9E408CC35B36E09DCC1E33CE /* HabitBloomWidgets.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
@@ -74,6 +75,7 @@
 		9E3F1FB50FFA1152DFFA03A2 /* WidgetSnapshotWriter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WidgetSnapshotWriter.swift; sourceTree = "<group>"; };
 		9E408CC35B36E09DCC1E33CE /* HabitBloomWidgets.appex */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = "wrapper.app-extension"; path = HabitBloomWidgets.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		A88C53DDFA092F3E80752845 /* StatsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatsView.swift; sourceTree = "<group>"; };
+		A35D7D3D9C7841C09E34C601 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		A94618CAC6044CD7136D7537 /* HabitBloom.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = HabitBloom.entitlements; sourceTree = "<group>"; };
 		B021B1E5B6D5E7CCA8C28EF9 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		B38117FF4902E6BB989DB05D /* HabitIconGlyph.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HabitIconGlyph.swift; sourceTree = "<group>"; };
@@ -83,7 +85,7 @@
 		CB0162740D1F7021F3AA7256 /* PlatformColors.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlatformColors.swift; sourceTree = "<group>"; };
 		DCB5FD2FE83A7CB380A23971 /* LaunchScreen.storyboard */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; path = LaunchScreen.storyboard; sourceTree = "<group>"; };
 		DCF4604AFDB8EFBF839B0FAE /* StickerImageOptimizer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StickerImageOptimizer.swift; sourceTree = "<group>"; };
-		DCFB9D4DB538157F5A89D874 /* ManualFolderSyncService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ManualFolderSyncService.swift; sourceTree = "<group>"; };
+		DCFB9D4DB538157F5A89D874 /* RemoteBackupService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemoteBackupService.swift; sourceTree = "<group>"; };
 		EE8BE2A8D8808E1509FA3FCD /* ReminderScheduler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReminderScheduler.swift; sourceTree = "<group>"; };
 		F0AE1440174375040CC0CA42 /* LiquidGlassStyle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiquidGlassStyle.swift; sourceTree = "<group>"; };
 		F5D37E535A4855F3E47E8536 /* HabitCardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HabitCardView.swift; sourceTree = "<group>"; };
@@ -114,6 +116,7 @@
 			isa = PBXGroup;
 			children = (
 				DD48CD71A798B0BA942BA4F6 /* App */,
+				A35D7D3D9C7841C09E34C601 /* Assets.xcassets */,
 				233D4C0A90914068EE16EA40 /* Models */,
 				C15AA10E053069D35812A6A2 /* Services */,
 				6D14D0EA73A8A066FB6853B3 /* Support */,
@@ -158,7 +161,7 @@
 				721095FD72CF3D9FEF03B45D /* CheckInFeedbackService.swift */,
 				4E7CC2D8216B50873CBB20A1 /* HabitModelContainer.swift */,
 				C51BCDB10EDE4722CA441218 /* HabitStatsService.swift */,
-				DCFB9D4DB538157F5A89D874 /* ManualFolderSyncService.swift */,
+				DCFB9D4DB538157F5A89D874 /* RemoteBackupService.swift */,
 				EE8BE2A8D8808E1509FA3FCD /* ReminderScheduler.swift */,
 				DCF4604AFDB8EFBF839B0FAE /* StickerImageOptimizer.swift */,
 				9E3F1FB50FFA1152DFFA03A2 /* WidgetSnapshotWriter.swift */,
@@ -285,6 +288,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				A35D7D3D9C7841C09E34C602 /* Assets.xcassets in Resources */,
 				B004B71567A8C1EBF851DC69 /* LaunchScreen.storyboard in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -318,7 +322,7 @@
 				D834DF9CB1978E33C8B27E0F /* IconCatalog.swift in Sources */,
 				FAF045AE8B797DD56DC1903D /* IconPickerSheet.swift in Sources */,
 				D23472F6F14BF26E6878AFD2 /* LiquidGlassStyle.swift in Sources */,
-				1A41396267D74609D7538D1B /* ManualFolderSyncService.swift in Sources */,
+				1A41396267D74609D7538D1B /* RemoteBackupService.swift in Sources */,
 				933A32199A963DE7EC5E87CB /* PlatformColors.swift in Sources */,
 				5FE56FF3A2047D771A6B8238 /* ReminderPlanner.swift in Sources */,
 				46EAAB470233649776C3F60E /* ReminderScheduler.swift in Sources */,
