@@ -28,8 +28,8 @@ targets:
         PRODUCT_BUNDLE_IDENTIFIER: com.zjx.HabitBloom
         INFOPLIST_FILE: HabitBloomApp/Support/Info.plist
         CODE_SIGN_ENTITLEMENTS: HabitBloomApp/Support/HabitBloom.entitlements
-        TARGETED_DEVICE_FAMILY: 1
-        SUPPORTS_MACCATALYST: NO
+        TARGETED_DEVICE_FAMILY: "1,6"
+        SUPPORTS_MACCATALYST: YES
         SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD: YES
     dependencies:
       - target: HabitBloomWidgets

@@ -28,7 +28,7 @@
 		A35D7D3D9C7841C09E34C602 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = A35D7D3D9C7841C09E34C601 /* Assets.xcassets */; };
 		B004B71567A8C1EBF851DC69 /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = DCB5FD2FE83A7CB380A23971 /* LaunchScreen.storyboard */; };
 		BFBC7971F5DFF6DCF1B4D11E /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2245981D41A66EE9FCC2B135 /* SettingsView.swift */; };
-		C5FBA66CD35CA69BD2426C1D /* HabitBloomWidgets.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 9E408CC35B36E09DCC1E33CE /* HabitBloomWidgets.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		C5FBA66CD35CA69BD2426C1D /* HabitBloomWidgets.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 9E408CC35B36E09DCC1E33CE /* HabitBloomWidgets.appex */; platformFilter = ios; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		D23472F6F14BF26E6878AFD2 /* LiquidGlassStyle.swift in Sources */ = {isa = PBXBuildFile; fileRef = F0AE1440174375040CC0CA42 /* LiquidGlassStyle.swift */; };
 		D834DF9CB1978E33C8B27E0F /* IconCatalog.swift in Sources */ = {isa = PBXBuildFile; fileRef = B385F2C0AE926A7D2D668E80 /* IconCatalog.swift */; };
 		FAF045AE8B797DD56DC1903D /* IconPickerSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6970689F40109E9868666FF6 /* IconPickerSheet.swift */; };
@@ -358,9 +358,9 @@
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = com.zjx.HabitBloom;
 				SDKROOT = iphoneos;
-				SUPPORTS_MACCATALYST = NO;
+				SUPPORTS_MACCATALYST = YES;
 				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = YES;
-				TARGETED_DEVICE_FAMILY = 1;
+				TARGETED_DEVICE_FAMILY = "1,6";
 			};
 			name = Release;
 		};
@@ -545,9 +545,9 @@
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = com.zjx.HabitBloom;
 				SDKROOT = iphoneos;
-				SUPPORTS_MACCATALYST = NO;
+				SUPPORTS_MACCATALYST = YES;
 				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = YES;
-				TARGETED_DEVICE_FAMILY = 1;
+				TARGETED_DEVICE_FAMILY = "1,6";
 			};
 			name = Debug;
 		};
