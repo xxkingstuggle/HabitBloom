@@ -11,7 +11,7 @@
 - Statistics: current streak, total completed days, monthly completion rate, and month heatmap.
 - Widget extension: single habit, multi habit, and summary widgets.
 - Remote widget snapshots through Cloudflare Workers + Durable Objects for sideloaded builds; App Group snapshot sharing remains as a local fallback.
-- Cloudflare text backup for habits and check-in records; images and card styling are intentionally excluded from long-term backup.
+- Cloudflare text backup for habits, lightweight card styling, and check-in records; custom images are intentionally excluded from long-term backup.
 - Check-in sound and card animation feedback.
 - Local image optimization before storing custom sticker images.
 - Derived habit stats are cached per refresh pass so the home screen and widget snapshot writer do not repeatedly scan the same check-in history.

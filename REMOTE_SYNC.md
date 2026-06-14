@@ -67,9 +67,10 @@ Cloud backup stores only lightweight text data:
 - habit ID
 - name
 - icon
+- color and card style
 - target frequency
 - reminder settings
 - sort order and creation date
 - check-in dates, completion state, notes
 
-It intentionally does not store custom images, card colors, or card style.
+It intentionally does not store custom images. If an old backup does not contain color or card style, restore can use the latest widget snapshot as a lightweight style fallback.

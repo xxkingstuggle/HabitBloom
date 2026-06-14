@@ -47,7 +47,7 @@ struct SettingsView: View {
             }
 
             Section("说明") {
-                Text("云端备份只保存目标名、图标、频率、提醒和打卡记录；不上传图片、卡片配色和卡片样式。")
+                Text("云端备份保存目标名、图标、颜色、卡片样式、频率、提醒和打卡记录；自定义图片只用于当前设备和小组件快照，不做长期备份。")
                     .foregroundStyle(.secondary)
             }
         }
@@ -74,10 +74,12 @@ struct SettingsView: View {
         Task {
             do {
                 let archive = try await RemoteBackupService.download()
+                let widgetSnapshot = try? await RemoteBackupService.downloadWidgetSnapshot()
                 let restoredHabits = try RemoteBackupService.restore(
                     archive: archive,
                     into: modelContext,
-                    existingHabits: habits
+                    existingHabits: habits,
+                    widgetSnapshot: widgetSnapshot
                 )
                 WidgetSnapshotWriter.scheduleWrite(habits: restoredHabits, delayMilliseconds: 0)
                 for reminderSnapshot in restoredHabits.map(ReminderScheduleSnapshot.init) {

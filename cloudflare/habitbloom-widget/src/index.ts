@@ -45,6 +45,8 @@ type BackupHabit = {
   id: string;
   name: string;
   icon: string;
+  colorName?: string;
+  cardStyle?: string;
   targetWeekdayMask: number;
   reminderEnabled: boolean;
   reminderHour: number;
@@ -290,6 +292,8 @@ function normalizeBackupHabit(value: unknown): BackupHabit | null {
     id: value.id,
     name: value.name,
     icon: typeof value.icon === "string" ? value.icon : "checkmark.circle.fill",
+    colorName: typeof value.colorName === "string" ? value.colorName : undefined,
+    cardStyle: typeof value.cardStyle === "string" ? value.cardStyle : undefined,
     targetWeekdayMask: toInteger(value.targetWeekdayMask, 127),
     reminderEnabled: value.reminderEnabled === true,
     reminderHour: clampInteger(value.reminderHour, 0, 23, 20),

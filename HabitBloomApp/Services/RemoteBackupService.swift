@@ -12,6 +12,8 @@ struct RemoteBackupHabit: Codable, Sendable {
     var id: UUID
     var name: String
     var icon: String
+    var colorName: String?
+    var cardStyle: String?
     var targetWeekdayMask: Int
     var reminderEnabled: Bool
     var reminderHour: Int
@@ -48,18 +50,29 @@ enum RemoteBackupService {
         try await RemoteBackupClient.getBackup()
     }
 
+    static func downloadWidgetSnapshot() async throws -> WidgetRemoteSnapshot {
+        try await RemoteBackupClient.getWidgetSnapshot()
+    }
+
     @MainActor
     static func restore(
         archive: RemoteBackupArchive,
         into context: ModelContext,
-        existingHabits: [HabitEntity]
+        existingHabits: [HabitEntity],
+        widgetSnapshot: WidgetRemoteSnapshot? = nil
     ) throws -> [HabitEntity] {
         var habitsByID = Dictionary(uniqueKeysWithValues: existingHabits.map { ($0.id, $0) })
+        let widgetHabitsByID = Dictionary(
+            uniqueKeysWithValues: (widgetSnapshot?.habits ?? []).map { ($0.id, $0) }
+        )
 
         for source in archive.habits {
             let target = habitsByID[source.id] ?? HabitEntity(id: source.id, name: source.name)
+            let widgetHabit = widgetHabitsByID[source.id]
             target.name = source.name
             target.icon = source.icon
+            target.colorName = source.colorName ?? widgetHabit?.colorName ?? target.colorName
+            target.cardStyle = source.cardStyle ?? widgetHabit?.cardStyle ?? target.cardStyle
             target.targetWeekdayMask = source.targetWeekdayMask == 0 ? WeekdayMask.all : source.targetWeekdayMask
             target.reminderEnabled = source.reminderEnabled
             target.reminderHour = source.reminderHour
@@ -115,6 +128,8 @@ enum RemoteBackupService {
                         id: habit.id,
                         name: habit.name,
                         icon: habit.icon,
+                        colorName: habit.colorName,
+                        cardStyle: habit.cardStyle,
                         targetWeekdayMask: habit.targetWeekdayMask,
                         reminderEnabled: habit.reminderEnabled,
                         reminderHour: habit.reminderHour,
@@ -162,6 +177,23 @@ private final class RemoteBackupCoordinator {
 }
 
 private enum RemoteBackupClient {
+    static func getWidgetSnapshot() async throws -> WidgetRemoteSnapshot {
+        guard RemoteWidgetConfig.isConfigured,
+              let baseURL = URL(string: RemoteWidgetConfig.baseURLString)
+        else { throw RemoteBackupError.notConfigured }
+
+        var components = URLComponents(url: baseURL, resolvingAgainstBaseURL: false)
+        components?.path = "/v1/snapshot/\(RemoteWidgetConfig.deviceKey)"
+        guard let url = components?.url else { throw RemoteBackupError.invalidURL }
+
+        var request = URLRequest(url: url)
+        request.timeoutInterval = 8
+        request.setValue("no-store", forHTTPHeaderField: "Cache-Control")
+        let (data, response) = try await URLSession.shared.data(for: request)
+        try validate(response: response)
+        return try jsonDecoder.decode(WidgetRemoteSnapshot.self, from: data)
+    }
+
     static func putBackup(_ archive: RemoteBackupArchive) async throws -> RemoteBackupArchive {
         var request = try request(path: "/v1/backup/\(RemoteWidgetConfig.deviceKey)", method: "PUT")
         request.httpBody = try jsonEncoder.encode(archive)
