@@ -155,12 +155,17 @@ struct HabitEditorView: View {
             modelContext.insert(target)
         }
 
-        try? modelContext.save()
+        do {
+            try modelContext.save()
+        } catch {
+            print("[HabitBloomModel] Failed to save habit editor changes: \(error.localizedDescription)")
+            return
+        }
         var snapshotHabits = habits
         if !snapshotHabits.contains(where: { $0.id == target.id }) {
             snapshotHabits.append(target)
         }
-        WidgetSnapshotWriter.scheduleWrite(habits: snapshotHabits)
+        WidgetSnapshotWriter.scheduleWrite(habits: snapshotHabits, backupDelayMilliseconds: 2_500)
         let reminderSnapshot = ReminderScheduleSnapshot(habit: target)
         Task { await ReminderScheduler.reschedule(for: reminderSnapshot) }
         dismiss()

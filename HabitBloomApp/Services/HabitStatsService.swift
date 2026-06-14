@@ -14,16 +14,72 @@ struct HabitStatsViewModel {
     )
 }
 
+struct HabitDerivedState {
+    var statsByHabitID: [UUID: HabitStatsViewModel]
+    var completedTodayByHabitID: [UUID: Bool]
+}
+
 enum HabitStatsService {
     static func stats(for habit: HabitEntity, today: Date = Date(), calendar: Calendar = .current) -> HabitStatsViewModel {
-        let completedDays = Set(
-            (habit.checkIns ?? [])
-                .filter(\.isCompleted)
-                .map(\.day)
-        )
         let normalizedToday = calendar.startOfDay(for: today)
-        let targetWeekdays = WeekdayMask.weekdays(from: habit.targetWeekdayMask)
-        let streak = currentStreak(endingAt: normalizedToday, completedDays: completedDays, targetWeekdays: targetWeekdays, calendar: calendar)
+        return stats(
+            for: habit,
+            completedDays: completedDays(for: habit),
+            normalizedToday: normalizedToday,
+            calendar: calendar
+        )
+    }
+
+    static func isCompletedToday(_ habit: HabitEntity, today: Date = Date(), calendar: Calendar = .current) -> Bool {
+        let day = calendar.startOfDay(for: today)
+        return (habit.checkIns ?? []).contains { $0.day == day && $0.isCompleted }
+    }
+
+    static func derivedState(for habits: [HabitEntity], today: Date = Date(), calendar: Calendar = .current) -> HabitDerivedState {
+        let normalizedToday = calendar.startOfDay(for: today)
+        var statsByHabitID: [UUID: HabitStatsViewModel] = [:]
+        var completedTodayByHabitID: [UUID: Bool] = [:]
+        statsByHabitID.reserveCapacity(habits.count)
+        completedTodayByHabitID.reserveCapacity(habits.count)
+
+        for habit in habits {
+            let completedDays = completedDays(for: habit)
+            statsByHabitID[habit.id] = stats(
+                for: habit,
+                completedDays: completedDays,
+                normalizedToday: normalizedToday,
+                calendar: calendar
+            )
+            completedTodayByHabitID[habit.id] = completedDays.contains(normalizedToday)
+        }
+
+        return HabitDerivedState(
+            statsByHabitID: statsByHabitID,
+            completedTodayByHabitID: completedTodayByHabitID
+        )
+    }
+
+    private static func stats(
+        for habit: HabitEntity,
+        completedDays: Set<Date>,
+        normalizedToday: Date,
+        calendar: Calendar
+    ) -> HabitStatsViewModel {
+        let targetWeekdays = Set(WeekdayMask.weekdays(from: habit.targetWeekdayMask))
+        guard !targetWeekdays.isEmpty else {
+            return HabitStatsViewModel(
+                currentStreak: 0,
+                totalCompletedDays: completedDays.count,
+                monthCompletionRate: 0,
+                monthDays: daysInMonth(containing: normalizedToday, calendar: calendar).map { ($0, completedDays.contains($0)) }
+            )
+        }
+        let streak = currentStreak(
+            endingAt: normalizedToday,
+            completedDays: completedDays,
+            targetWeekdays: targetWeekdays,
+            calendar: calendar
+        )
         let monthDays = daysInMonth(containing: normalizedToday, calendar: calendar)
         let expectedDays = monthDays.filter { targetWeekdays.contains(calendar.component(.weekday, from: $0)) }
         let completedExpected = expectedDays.filter { completedDays.contains($0) }.count
@@ -37,12 +93,15 @@ enum HabitStatsService {
         )
     }
 
-    static func isCompletedToday(_ habit: HabitEntity, today: Date = Date(), calendar: Calendar = .current) -> Bool {
-        let day = calendar.startOfDay(for: today)
-        return (habit.checkIns ?? []).contains { $0.day == day && $0.isCompleted }
+    private static func completedDays(for habit: HabitEntity) -> Set<Date> {
+        var completedDays = Set<Date>()
+        for checkIn in habit.checkIns ?? [] where checkIn.isCompleted {
+            completedDays.insert(checkIn.day)
+        }
+        return completedDays
     }
 
-    private static func currentStreak(endingAt today: Date, completedDays: Set<Date>, targetWeekdays: [Int], calendar: Calendar) -> Int {
+    private static func currentStreak(endingAt today: Date, completedDays: Set<Date>, targetWeekdays: Set<Int>, calendar: Calendar) -> Int {
         var cursor = today
         var count = 0
 
@@ -66,7 +125,7 @@ enum HabitStatsService {
         var cursor = interval.start
 
         while cursor < interval.end {
-            days.append(calendar.startOfDay(for: cursor))
+            days.append(cursor)
             guard let next = calendar.date(byAdding: .day, value: 1, to: cursor) else { break }
             cursor = next
         }

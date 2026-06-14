@@ -134,6 +134,9 @@ struct HabitCardView: View {
         withAnimation(.spring(response: 0.32, dampingFraction: 0.54).delay(0.05)) {
             cardScale = 1.0
             iconScale = completing ? 1.13 : 0.94
+            if bursts.count >= 3 {
+                bursts.removeFirst(bursts.count - 2)
+            }
             bursts.append(burst)
         }
         withAnimation(.easeOut(duration: 0.32)) {

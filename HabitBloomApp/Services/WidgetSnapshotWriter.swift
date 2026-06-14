@@ -56,14 +56,17 @@ enum WidgetSnapshotWriter {
         statsByHabitID: [UUID: HabitStatsViewModel] = [:],
         completedTodayByHabitID: [UUID: Bool] = [:],
         selectedHabitID: UUID? = nil,
-        delayMilliseconds: UInt64 = 80
+        delayMilliseconds: UInt64 = 80,
+        backupDelayMilliseconds: UInt64? = nil
     ) {
         let inputs = snapshotInputs(
             habits: habits,
             statsByHabitID: statsByHabitID,
             completedTodayByHabitID: completedTodayByHabitID
         )
-        RemoteBackupService.scheduleUpload(habits: habits)
+        if let backupDelayMilliseconds {
+            RemoteBackupService.scheduleUpload(habits: habits, delayMilliseconds: backupDelayMilliseconds)
+        }
 
         Task {
             await coordinator.scheduleFullSnapshot(
@@ -87,7 +90,7 @@ enum WidgetSnapshotWriter {
             statsByHabitID: statsByHabitID,
             completedTodayByHabitID: completedTodayByHabitID
         )
-        RemoteBackupService.scheduleUpload(habits: habits, delayMilliseconds: 500)
+        RemoteBackupService.scheduleUpload(habits: habits, delayMilliseconds: 5_000)
 
         Task {
             await coordinator.writeCheckIn(
@@ -104,10 +107,18 @@ enum WidgetSnapshotWriter {
         statsByHabitID: [UUID: HabitStatsViewModel],
         completedTodayByHabitID: [UUID: Bool]
     ) -> [WidgetHabitSnapshotInput] {
-        habits
-            .sorted { $0.sortOrder == $1.sortOrder ? $0.createdAt < $1.createdAt : $0.sortOrder < $1.sortOrder }
+        let sortedHabits = habits.sorted {
+            $0.sortOrder == $1.sortOrder ? $0.createdAt < $1.createdAt : $0.sortOrder < $1.sortOrder
+        }
+        let derivedState = statsByHabitID.isEmpty || completedTodayByHabitID.isEmpty
+            ? HabitStatsService.derivedState(for: sortedHabits)
+            : nil
+
+        return sortedHabits
             .map { habit in
-                let stats = statsByHabitID[habit.id] ?? HabitStatsService.stats(for: habit)
+                let stats = statsByHabitID[habit.id]
+                    ?? derivedState?.statsByHabitID[habit.id]
+                    ?? HabitStatsService.stats(for: habit)
                 return WidgetHabitSnapshotInput(
                     id: habit.id,
                     name: habit.name,
@@ -117,7 +128,9 @@ enum WidgetSnapshotWriter {
                     streakDays: stats.currentStreak,
                     totalDays: stats.totalCompletedDays,
                     completionRate: stats.monthCompletionRate,
-                    isCompletedToday: completedTodayByHabitID[habit.id] ?? HabitStatsService.isCompletedToday(habit),
+                    isCompletedToday: completedTodayByHabitID[habit.id]
+                        ?? derivedState?.completedTodayByHabitID[habit.id]
+                        ?? HabitStatsService.isCompletedToday(habit),
                     imageData: habit.cardStyle == HabitCardKind.image.rawValue ? habit.imageData : nil,
                     updatedAt: Date()
                 )
@@ -137,6 +150,49 @@ private struct WidgetHabitSnapshotInput: Sendable {
     var isCompletedToday: Bool
     var imageData: Data?
     var updatedAt: Date
+}
+
+private enum WidgetSnapshotFactory {
+    static func makeRemoteSnapshot(inputs: [WidgetHabitSnapshotInput], selectedHabitID: UUID?) -> WidgetRemoteSnapshot {
+        WidgetRemoteSnapshot(
+            deviceKey: RemoteWidgetConfig.deviceKey,
+            updatedAt: Date(),
+            selectedHabitID: selectedHabitID,
+            habits: inputs.map { input in
+                WidgetHabitSnapshot(
+                    id: input.id,
+                    name: input.name,
+                    icon: input.icon,
+                    colorName: input.colorName,
+                    cardStyle: input.cardStyle,
+                    streakDays: input.streakDays,
+                    totalDays: input.totalDays,
+                    completionRate: input.completionRate,
+                    isCompletedToday: input.isCompletedToday,
+                    imageFileName: nil,
+                    imageData: input.imageData,
+                    updatedAt: input.updatedAt
+                )
+            }
+        )
+    }
+
+    static func makeLocalSnapshot(input: WidgetHabitSnapshotInput, imageFileName: String?) -> WidgetHabitSnapshot {
+        WidgetHabitSnapshot(
+            id: input.id,
+            name: input.name,
+            icon: input.icon,
+            colorName: input.colorName,
+            cardStyle: input.cardStyle,
+            streakDays: input.streakDays,
+            totalDays: input.totalDays,
+            completionRate: input.completionRate,
+            isCompletedToday: input.isCompletedToday,
+            imageFileName: imageFileName,
+            imageData: nil,
+            updatedAt: input.updatedAt
+        )
+    }
 }
 
 private actor WidgetSnapshotWriteCoordinator {
@@ -165,37 +221,13 @@ private actor WidgetSnapshotWriteCoordinator {
         await reloadWidgets()
     }
 
-    private static func makeSnapshot(inputs: [WidgetHabitSnapshotInput], selectedHabitID: UUID?) -> WidgetRemoteSnapshot {
-        WidgetRemoteSnapshot(
-            deviceKey: RemoteWidgetConfig.deviceKey,
-            updatedAt: Date(),
-            selectedHabitID: selectedHabitID,
-            habits: inputs.map { input in
-                WidgetHabitSnapshot(
-                    id: input.id,
-                    name: input.name,
-                    icon: input.icon,
-                    colorName: input.colorName,
-                    cardStyle: input.cardStyle,
-                    streakDays: input.streakDays,
-                    totalDays: input.totalDays,
-                    completionRate: input.completionRate,
-                    isCompletedToday: input.isCompletedToday,
-                    imageFileName: nil,
-                    imageData: input.imageData,
-                    updatedAt: input.updatedAt
-                )
-            }
-        )
-    }
-
     private static func putRemoteSnapshot(inputs: [WidgetHabitSnapshotInput], selectedHabitID: UUID?) async {
         guard RemoteWidgetConfig.isConfigured else {
             log("remote PUT skipped: RemoteWidgetConfig is not configured")
             return
         }
 
-        let snapshot = makeSnapshot(inputs: inputs, selectedHabitID: selectedHabitID)
+        let snapshot = WidgetSnapshotFactory.makeRemoteSnapshot(inputs: inputs, selectedHabitID: selectedHabitID)
         let startedAt = Date()
         log("PUT /snapshot start updatedAt=\(snapshot.updatedAt.iso8601LogString)")
 
@@ -224,7 +256,7 @@ private actor WidgetSnapshotWriteCoordinator {
             let body = RemoteCheckInRequest(
                 habitID: habitID,
                 isCompletedToday: isCompletedToday,
-                snapshot: makeSnapshot(inputs: inputs, selectedHabitID: habitID)
+                snapshot: WidgetSnapshotFactory.makeRemoteSnapshot(inputs: inputs, selectedHabitID: habitID)
             )
             request.httpBody = try jsonEncoder.encode(body)
             let (_, response) = try await URLSession.shared.data(for: request)
@@ -269,20 +301,7 @@ private actor WidgetSnapshotWriteCoordinator {
                 activeImageFileNames.insert(imageFileName)
             }
 
-            return WidgetHabitSnapshot(
-                id: input.id,
-                name: input.name,
-                icon: input.icon,
-                colorName: input.colorName,
-                cardStyle: input.cardStyle,
-                streakDays: input.streakDays,
-                totalDays: input.totalDays,
-                completionRate: input.completionRate,
-                isCompletedToday: input.isCompletedToday,
-                imageFileName: imageFileName,
-                imageData: nil,
-                updatedAt: input.updatedAt
-            )
+            return WidgetSnapshotFactory.makeLocalSnapshot(input: input, imageFileName: imageFileName)
         }
 
         removeStaleImages(in: imagesDirectory, keeping: activeImageFileNames)
@@ -367,12 +386,14 @@ private let jsonEncoder: JSONEncoder = {
     return encoder
 }()
 
+private let logDateFormatStyle = Date.ISO8601FormatStyle(includingFractionalSeconds: true)
+
 private func log(_ message: String) {
     print("[HabitBloomRemote] \(Date().iso8601LogString) \(message)")
 }
 
 private extension Date {
     var iso8601LogString: String {
-        ISO8601DateFormatter().string(from: self)
+        formatted(logDateFormatStyle)
     }
 }

@@ -35,10 +35,7 @@ enum RemoteBackupService {
 
     @MainActor
     static func scheduleUpload(habits: [HabitEntity], delayMilliseconds: UInt64 = 1_200) {
-        let archive = makeArchive(habits: habits)
-        Task {
-            await coordinator.scheduleUpload(archive, delayMilliseconds: delayMilliseconds)
-        }
+        coordinator.scheduleUpload(habits: habits, delayMilliseconds: delayMilliseconds)
     }
 
     @MainActor
@@ -63,11 +60,11 @@ enum RemoteBackupService {
             let target = habitsByID[source.id] ?? HabitEntity(id: source.id, name: source.name)
             target.name = source.name
             target.icon = source.icon
-            target.targetWeekdayMask = source.targetWeekdayMask
+            target.targetWeekdayMask = source.targetWeekdayMask == 0 ? WeekdayMask.all : source.targetWeekdayMask
             target.reminderEnabled = source.reminderEnabled
             target.reminderHour = source.reminderHour
             target.reminderMinute = source.reminderMinute
-            target.reminderWeekdayMask = source.reminderWeekdayMask
+            target.reminderWeekdayMask = source.reminderWeekdayMask == 0 ? WeekdayMask.all : source.reminderWeekdayMask
             target.sortOrder = source.sortOrder
             target.createdAt = source.createdAt
 
@@ -106,7 +103,7 @@ enum RemoteBackupService {
     }
 
     @MainActor
-    private static func makeArchive(habits: [HabitEntity]) -> RemoteBackupArchive {
+    fileprivate static func makeArchive(habits: [HabitEntity]) -> RemoteBackupArchive {
         RemoteBackupArchive(
             version: 1,
             deviceKey: RemoteWidgetConfig.deviceKey,
@@ -130,7 +127,7 @@ enum RemoteBackupService {
                             .map {
                                 RemoteBackupCheckIn(
                                     id: $0.id,
-                                    day: Calendar.current.startOfDay(for: $0.day),
+                                    day: $0.day,
                                     isCompleted: $0.isCompleted,
                                     note: $0.note,
                                     createdAt: $0.createdAt
@@ -142,16 +139,18 @@ enum RemoteBackupService {
     }
 }
 
-private actor RemoteBackupCoordinator {
+@MainActor
+private final class RemoteBackupCoordinator {
     private var pendingTask: Task<Void, Never>?
 
-    func scheduleUpload(_ archive: RemoteBackupArchive, delayMilliseconds: UInt64) {
+    func scheduleUpload(habits: [HabitEntity], delayMilliseconds: UInt64) {
         pendingTask?.cancel()
-        pendingTask = Task.detached(priority: .utility) {
+        pendingTask = Task { @MainActor in
             if delayMilliseconds > 0 {
                 try? await Task.sleep(nanoseconds: delayMilliseconds * 1_000_000)
             }
             guard !Task.isCancelled else { return }
+            let archive = RemoteBackupService.makeArchive(habits: habits)
             do {
                 _ = try await RemoteBackupClient.putBackup(archive)
                 remoteBackupLog("auto backup uploaded habits=\(archive.habits.count)")

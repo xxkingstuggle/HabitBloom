@@ -129,7 +129,7 @@ struct ContentView: View {
             willComplete = true
         }
 
-        try? modelContext.save()
+        guard saveModelContext(action: "toggle today") else { return }
         let derived = refreshDerivedState(habits: habits)
         WidgetSnapshotWriter.scheduleCheckIn(
             habitID: habit.id,
@@ -152,40 +152,48 @@ struct ContentView: View {
             habit.sortOrder = index
         }
 
-        try? modelContext.save()
-        refreshDerivedStateAndWidgets(habits: orderedHabits, delayMilliseconds: 0)
+        guard saveModelContext(action: "move habit") else { return }
+        refreshDerivedStateAndWidgets(habits: orderedHabits, delayMilliseconds: 0, backupDelayMilliseconds: 2_500)
     }
 
     private func delete(_ habit: HabitEntity) {
         modelContext.delete(habit)
-        try? modelContext.save()
-        refreshDerivedStateAndWidgets(delayMilliseconds: 0)
+        guard saveModelContext(action: "delete habit") else { return }
+        refreshDerivedStateAndWidgets(delayMilliseconds: 0, backupDelayMilliseconds: 2_500)
     }
 
-    private func refreshDerivedStateAndWidgets(habits sourceHabits: [HabitEntity]? = nil, delayMilliseconds: UInt64 = 80) {
+    private func refreshDerivedStateAndWidgets(
+        habits sourceHabits: [HabitEntity]? = nil,
+        delayMilliseconds: UInt64 = 80,
+        backupDelayMilliseconds: UInt64? = nil
+    ) {
         let sourceHabits = sourceHabits ?? habits
         let derived = refreshDerivedState(habits: sourceHabits)
         WidgetSnapshotWriter.scheduleWrite(
             habits: sourceHabits,
             statsByHabitID: derived.stats,
             completedTodayByHabitID: derived.completedToday,
-            delayMilliseconds: delayMilliseconds
+            delayMilliseconds: delayMilliseconds,
+            backupDelayMilliseconds: backupDelayMilliseconds
         )
     }
 
     @discardableResult
     private func refreshDerivedState(habits sourceHabits: [HabitEntity]) -> (stats: [UUID: HabitStatsViewModel], completedToday: [UUID: Bool]) {
-        var nextStats: [UUID: HabitStatsViewModel] = [:]
-        var nextCompletedToday: [UUID: Bool] = [:]
+        let derived = HabitStatsService.derivedState(for: sourceHabits)
+        statsByHabitID = derived.statsByHabitID
+        completedTodayByHabitID = derived.completedTodayByHabitID
+        return (derived.statsByHabitID, derived.completedTodayByHabitID)
+    }
 
-        for habit in sourceHabits {
-            nextStats[habit.id] = HabitStatsService.stats(for: habit)
-            nextCompletedToday[habit.id] = HabitStatsService.isCompletedToday(habit)
+    private func saveModelContext(action: String) -> Bool {
+        do {
+            try modelContext.save()
+            return true
+        } catch {
+            print("[HabitBloomModel] Failed to save during \(action): \(error.localizedDescription)")
+            return false
         }
-
-        statsByHabitID = nextStats
-        completedTodayByHabitID = nextCompletedToday
-        return (nextStats, nextCompletedToday)
     }
 
 }

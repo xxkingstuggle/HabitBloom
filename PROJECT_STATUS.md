@@ -14,6 +14,9 @@
 - Cloudflare text backup for habits and check-in records; images and card styling are intentionally excluded from long-term backup.
 - Check-in sound and card animation feedback.
 - Local image optimization before storing custom sticker images.
+- Derived habit stats are cached per refresh pass so the home screen and widget snapshot writer do not repeatedly scan the same check-in history.
+- Automatic cloud backup is debounced separately from widget snapshot refreshes; ordinary foreground/background refreshes no longer upload full history.
+- Mac Catalyst builds are enabled for quick desktop testing of the main app.
 - Core smoke and stress test executables.
 - Free-signing capability audit documented in `PERMISSIONS.md`.
 
@@ -25,6 +28,7 @@
 - Full image crop UI. Current import does automatic center crop to the sticker ratio and compression.
 - GitHub Releases for IPA delivery. Source control comes first; IPA publishing can come later.
 - Full remote backup conflict resolution. Current cloud restore is an overwrite/update merge by stable IDs.
+- Full image decode cache for app cards. Images are compressed at import, but image-card rendering can still be profiled later if a large image library is used.
 
 ## v0.1.0 Usable Release Criteria
 
@@ -51,6 +55,7 @@
 ```sh
 swift run HabitCoreSmokeTests
 swift run HabitCoreStressTests
+xcodebuild -project HabitBloom.xcodeproj -scheme HabitBloom -configuration Debug -destination 'platform=macOS,variant=Mac Catalyst,name=My Mac' -allowProvisioningUpdates build
 ```
 
 - For UI or widget changes, also build the Xcode scheme and test on the current simulator/device.

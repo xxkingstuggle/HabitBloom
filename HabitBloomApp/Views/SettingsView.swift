@@ -80,6 +80,9 @@ struct SettingsView: View {
                     existingHabits: habits
                 )
                 WidgetSnapshotWriter.scheduleWrite(habits: restoredHabits, delayMilliseconds: 0)
+                for reminderSnapshot in restoredHabits.map(ReminderScheduleSnapshot.init) {
+                    await ReminderScheduler.reschedule(for: reminderSnapshot)
+                }
                 backupMessage = "已恢复 \(archive.habits.count) 个目标"
             } catch {
                 backupMessage = "恢复失败：\(error.localizedDescription)"

@@ -692,13 +692,15 @@ private let widgetJSONEncoder: JSONEncoder = {
     return encoder
 }()
 
+private let widgetLogDateFormatStyle = Date.ISO8601FormatStyle(includingFractionalSeconds: true)
+
 private func widgetLog(_ message: String) {
     print("[HabitBloomWidgetRemote] \(Date().iso8601LogString) \(message)")
 }
 
 private extension Date {
     var iso8601LogString: String {
-        ISO8601DateFormatter().string(from: self)
+        formatted(widgetLogDateFormatStyle)
     }
 }
 

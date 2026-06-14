@@ -5,6 +5,7 @@
 ```sh
 swift run HabitCoreSmokeTests
 swift run HabitCoreStressTests
+xcodebuild -project HabitBloom.xcodeproj -scheme HabitBloom -configuration Debug -destination 'platform=macOS,variant=Mac Catalyst,name=My Mac' -allowProvisioningUpdates build
 ```
 
 The smoke test catches basic logic regressions. The stress test simulates hundreds of habits and years of check-ins, so it is useful before larger refactors.
@@ -20,6 +21,7 @@ The smoke test catches basic logic regressions. The stress test simulates hundre
 - Import a large photo and confirm the app remains responsive.
 - Confirm image cards show correctly in the app and widgets.
 - Toggle today's check-in repeatedly and confirm stats update.
+- Toggle several habits quickly and confirm sound/animation feedback does not stack into visible lag.
 - Change widget-selected habit and confirm the displayed habit changes.
 - Set reminders and confirm notification scheduling still works.
 - Use Settings to upload a cloud backup and restore from the server.
@@ -30,4 +32,6 @@ The smoke test catches basic logic regressions. The stress test simulates hundre
 - Test with multiple image-card habits.
 - Confirm widget refresh does not rewrite unchanged images every time.
 - Confirm the app launches quickly after many check-ins.
+- Confirm normal app foreground/background refreshes do not trigger full cloud-backup uploads.
+- Confirm a burst of check-ins coalesces into one delayed text backup while widget snapshots still refresh quickly.
 - Confirm cloud backup stays small because it excludes custom image data.
