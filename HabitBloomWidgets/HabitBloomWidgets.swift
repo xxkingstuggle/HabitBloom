@@ -6,7 +6,7 @@ import WidgetKit
 private let suiteName = "group.com.zjx.HabitBloom"
 private let snapshotsKey = "habitWidgetSnapshots"
 private let remoteSnapshotCacheKey = "remoteWidgetSnapshot"
-private let remoteRequestTimeout: TimeInterval = 2.5
+private let remoteRequestTimeout: TimeInterval = 8
 
 private enum RemoteWidgetConfig {
     static let baseURLString = infoValue(for: "HBRemoteBaseURL")
