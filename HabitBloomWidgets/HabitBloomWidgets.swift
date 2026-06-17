@@ -7,6 +7,7 @@ private let suiteName = "group.com.zjx.HabitBloom"
 private let snapshotsKey = "habitWidgetSnapshots"
 private let remoteSnapshotCacheKey = "remoteWidgetSnapshot"
 private let remoteRequestTimeout: TimeInterval = 8
+private let optionsRemoteRequestTimeout: TimeInterval = 1.5
 
 private enum RemoteWidgetConfig {
     static let baseURLString = infoValue(for: "HBRemoteBaseURL")
@@ -176,7 +177,7 @@ struct HabitWidgetEntityQuery: EntityQuery {
     }
 
     private func loadWidgetEntities(reason: String) async -> [HabitWidgetEntity] {
-        let snapshot = await WidgetSnapshotStore.loadSnapshot(reason: "options \(reason)")
+        let snapshot = await WidgetSnapshotStore.loadOptionsSnapshot(reason: reason)
         return snapshot.habits.map {
             HabitWidgetEntity(id: $0.id.uuidString, name: $0.name, detail: "连续 \($0.streakDays) 天")
         }
@@ -185,7 +186,7 @@ struct HabitWidgetEntityQuery: EntityQuery {
 
 private enum WidgetSnapshotStore {
     static func loadSnapshot(reason: String) async -> WidgetRemoteSnapshot {
-        if let remote = await RemoteWidgetClient.fetchSnapshot(reason: reason) {
+        if let remote = await RemoteWidgetClient.fetchSnapshot(reason: reason, timeout: remoteRequestTimeout) {
             cache(remote)
             widgetLog("using remote reason=\(reason) updatedAt=\(remote.updatedAt.iso8601LogString) selectedID=\(remote.selectedHabitID?.uuidString ?? "nil")")
             if !remote.habits.isEmpty {
@@ -205,6 +206,27 @@ private enum WidgetSnapshotStore {
         }
 
         return placeholderSnapshot(reason: reason)
+    }
+
+    static func loadOptionsSnapshot(reason: String) async -> WidgetRemoteSnapshot {
+        if let appGroup = appGroupSnapshot(), !appGroup.habits.isEmpty {
+            widgetLog("using App Group options reason=\(reason) habits=\(appGroup.habits.count)")
+            return appGroup
+        }
+
+        if let cached = cachedSnapshot(), !cached.habits.isEmpty {
+            widgetLog("using widget cache options reason=\(reason) updatedAt=\(cached.updatedAt.iso8601LogString) selectedID=\(cached.selectedHabitID?.uuidString ?? "nil")")
+            return cached
+        }
+
+        if let remote = await RemoteWidgetClient.fetchSnapshot(reason: "options \(reason)", timeout: optionsRemoteRequestTimeout),
+           !remote.habits.isEmpty {
+            cache(remote)
+            widgetLog("using remote options reason=\(reason) updatedAt=\(remote.updatedAt.iso8601LogString) habits=\(remote.habits.count)")
+            return remote
+        }
+
+        return placeholderSnapshot(reason: "options \(reason)")
     }
 
     private static func placeholderSnapshot(reason: String) -> WidgetRemoteSnapshot {
@@ -243,7 +265,7 @@ private enum WidgetSnapshotStore {
 }
 
 private enum RemoteWidgetClient {
-    static func fetchSnapshot(reason: String) async -> WidgetRemoteSnapshot? {
+    static func fetchSnapshot(reason: String, timeout: TimeInterval) async -> WidgetRemoteSnapshot? {
         guard RemoteWidgetConfig.isConfigured else {
             widgetLog("remote GET skipped: config missing reason=\(reason)")
             return nil
@@ -261,7 +283,7 @@ private enum RemoteWidgetClient {
 
         do {
             var request = URLRequest(url: url)
-            request.timeoutInterval = remoteRequestTimeout
+            request.timeoutInterval = timeout
             request.setValue("no-store", forHTTPHeaderField: "Cache-Control")
             let startedAt = Date()
             let (data, response) = try await URLSession.shared.data(for: request)
