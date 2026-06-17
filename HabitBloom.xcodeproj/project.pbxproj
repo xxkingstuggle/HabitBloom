@@ -8,30 +8,32 @@
 
 /* Begin PBXBuildFile section */
 		0614F98A37FB16F28AA9F025 /* HabitIconGlyph.swift in Sources */ = {isa = PBXBuildFile; fileRef = B38117FF4902E6BB989DB05D /* HabitIconGlyph.swift */; };
-		1A41396267D74609D7538D1B /* RemoteBackupService.swift in Sources */ = {isa = PBXBuildFile; fileRef = DCFB9D4DB538157F5A89D874 /* RemoteBackupService.swift */; };
 		1C6C3F03D9D957834F2BF9AE /* StatsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A88C53DDFA092F3E80752845 /* StatsView.swift */; };
 		1EB8B914F61A595782A5EB80 /* HabitModelContainer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4E7CC2D8216B50873CBB20A1 /* HabitModelContainer.swift */; };
 		2548E69FEA0E95AEF5CF8CAC /* HabitBloomWidgets.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0543C8E2EAC7CB98063BD6CF /* HabitBloomWidgets.swift */; };
 		2C9132879577DA9EBB7CCA52 /* HabitCardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F5D37E535A4855F3E47E8536 /* HabitCardView.swift */; };
 		2D7FB44F9A530C49CA428033 /* HabitModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 948F1977E900766A4A743DCA /* HabitModels.swift */; };
+		3A30F6D1851B8D36BAA860F2 /* HabitBloomWidgetsMac.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 3C5D80A44B19C02296B0161B /* HabitBloomWidgetsMac.appex */; platformFilter = maccatalyst; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		3FD86D492D19579B37362742 /* HabitBloomApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD0216F144BCD767C4598B1F /* HabitBloomApp.swift */; };
 		46EAAB470233649776C3F60E /* ReminderScheduler.swift in Sources */ = {isa = PBXBuildFile; fileRef = EE8BE2A8D8808E1509FA3FCD /* ReminderScheduler.swift */; };
 		49C60C39B0042D4EA438247F /* CheckInFeedbackService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 721095FD72CF3D9FEF03B45D /* CheckInFeedbackService.swift */; };
 		4B985D67258E84D0DB2900FF /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4E5B578E09B74B9576F3768C /* ContentView.swift */; };
 		4F95327D3B56D393BE1B4FE9 /* HabitStatsService.swift in Sources */ = {isa = PBXBuildFile; fileRef = C51BCDB10EDE4722CA441218 /* HabitStatsService.swift */; };
 		5FE56FF3A2047D771A6B8238 /* ReminderPlanner.swift in Sources */ = {isa = PBXBuildFile; fileRef = 371483A349C11B96A87054CD /* ReminderPlanner.swift */; };
+		700AE6F25BD8EAE84CC968FD /* RemoteBackupService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2DD31ABA9F7E02F101B96912 /* RemoteBackupService.swift */; };
 		71AA4DEF5D3B6A0B512A8727 /* HabitStatsCalculator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0617A8578689832D937D90F1 /* HabitStatsCalculator.swift */; };
 		7C419A91243DA45A431BF269 /* WidgetSnapshotWriter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9E3F1FB50FFA1152DFFA03A2 /* WidgetSnapshotWriter.swift */; };
 		7D05D134BA993118331AE2C3 /* HabitEditorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4107A7C2B23C184B009803FC /* HabitEditorView.swift */; };
 		90DE6B97845E3D13BF23BCE5 /* StickerImageOptimizer.swift in Sources */ = {isa = PBXBuildFile; fileRef = DCF4604AFDB8EFBF839B0FAE /* StickerImageOptimizer.swift */; };
 		933A32199A963DE7EC5E87CB /* PlatformColors.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB0162740D1F7021F3AA7256 /* PlatformColors.swift */; };
-		A35D7D3D9C7841C09E34C602 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = A35D7D3D9C7841C09E34C601 /* Assets.xcassets */; };
+		9A6013DEDF362B5D607B8DC8 /* HabitBloomWidgets.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0543C8E2EAC7CB98063BD6CF /* HabitBloomWidgets.swift */; };
 		B004B71567A8C1EBF851DC69 /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = DCB5FD2FE83A7CB380A23971 /* LaunchScreen.storyboard */; };
 		BFBC7971F5DFF6DCF1B4D11E /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2245981D41A66EE9FCC2B135 /* SettingsView.swift */; };
 		C5FBA66CD35CA69BD2426C1D /* HabitBloomWidgets.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 9E408CC35B36E09DCC1E33CE /* HabitBloomWidgets.appex */; platformFilter = ios; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		D23472F6F14BF26E6878AFD2 /* LiquidGlassStyle.swift in Sources */ = {isa = PBXBuildFile; fileRef = F0AE1440174375040CC0CA42 /* LiquidGlassStyle.swift */; };
 		D834DF9CB1978E33C8B27E0F /* IconCatalog.swift in Sources */ = {isa = PBXBuildFile; fileRef = B385F2C0AE926A7D2D668E80 /* IconCatalog.swift */; };
 		FAF045AE8B797DD56DC1903D /* IconPickerSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6970689F40109E9868666FF6 /* IconPickerSheet.swift */; };
+		FD367AFBC7A11C2F5C637622 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = C09268B4213DC4D1CE03921C /* Assets.xcassets */; };
 		FFD976B4AE6F30F3667D3997 /* HabitEntities.swift in Sources */ = {isa = PBXBuildFile; fileRef = 72AA9F7B648AF84697F4D010 /* HabitEntities.swift */; };
 /* End PBXBuildFile section */
 
@@ -43,6 +45,13 @@
 			remoteGlobalIDString = CD9DA825600EFF85DD1C1087;
 			remoteInfo = HabitBloomWidgets;
 		};
+		658F82C625B8B021337BD39B /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = F61812DFD99538EF5933449E /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 270A798C4EEE8821580692C9;
+			remoteInfo = HabitBloomWidgetsMac;
+		};
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -53,6 +62,7 @@
 			dstSubfolderSpec = 13;
 			files = (
 				C5FBA66CD35CA69BD2426C1D /* HabitBloomWidgets.appex in Embed Foundation Extensions */,
+				3A30F6D1851B8D36BAA860F2 /* HabitBloomWidgetsMac.appex in Embed Foundation Extensions */,
 			);
 			name = "Embed Foundation Extensions";
 			runOnlyForDeploymentPostprocessing = 0;
@@ -63,7 +73,9 @@
 		0543C8E2EAC7CB98063BD6CF /* HabitBloomWidgets.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HabitBloomWidgets.swift; sourceTree = "<group>"; };
 		0617A8578689832D937D90F1 /* HabitStatsCalculator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HabitStatsCalculator.swift; sourceTree = "<group>"; };
 		2245981D41A66EE9FCC2B135 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
+		2DD31ABA9F7E02F101B96912 /* RemoteBackupService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemoteBackupService.swift; sourceTree = "<group>"; };
 		371483A349C11B96A87054CD /* ReminderPlanner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReminderPlanner.swift; sourceTree = "<group>"; };
+		3C5D80A44B19C02296B0161B /* HabitBloomWidgetsMac.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = HabitBloomWidgetsMac.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		4107A7C2B23C184B009803FC /* HabitEditorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HabitEditorView.swift; sourceTree = "<group>"; };
 		4E5B578E09B74B9576F3768C /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		4E7CC2D8216B50873CBB20A1 /* HabitModelContainer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HabitModelContainer.swift; sourceTree = "<group>"; };
@@ -75,17 +87,16 @@
 		9E3F1FB50FFA1152DFFA03A2 /* WidgetSnapshotWriter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WidgetSnapshotWriter.swift; sourceTree = "<group>"; };
 		9E408CC35B36E09DCC1E33CE /* HabitBloomWidgets.appex */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = "wrapper.app-extension"; path = HabitBloomWidgets.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		A88C53DDFA092F3E80752845 /* StatsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatsView.swift; sourceTree = "<group>"; };
-		A35D7D3D9C7841C09E34C601 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		A94618CAC6044CD7136D7537 /* HabitBloom.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = HabitBloom.entitlements; sourceTree = "<group>"; };
 		B021B1E5B6D5E7CCA8C28EF9 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		B38117FF4902E6BB989DB05D /* HabitIconGlyph.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HabitIconGlyph.swift; sourceTree = "<group>"; };
 		B385F2C0AE926A7D2D668E80 /* IconCatalog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IconCatalog.swift; sourceTree = "<group>"; };
 		BB3CA1B87759AD55EFF8CDE2 /* HabitBloomWidgets.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = HabitBloomWidgets.entitlements; sourceTree = "<group>"; };
+		C09268B4213DC4D1CE03921C /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		C51BCDB10EDE4722CA441218 /* HabitStatsService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HabitStatsService.swift; sourceTree = "<group>"; };
 		CB0162740D1F7021F3AA7256 /* PlatformColors.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlatformColors.swift; sourceTree = "<group>"; };
 		DCB5FD2FE83A7CB380A23971 /* LaunchScreen.storyboard */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; path = LaunchScreen.storyboard; sourceTree = "<group>"; };
 		DCF4604AFDB8EFBF839B0FAE /* StickerImageOptimizer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StickerImageOptimizer.swift; sourceTree = "<group>"; };
-		DCFB9D4DB538157F5A89D874 /* RemoteBackupService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemoteBackupService.swift; sourceTree = "<group>"; };
 		EE8BE2A8D8808E1509FA3FCD /* ReminderScheduler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReminderScheduler.swift; sourceTree = "<group>"; };
 		F0AE1440174375040CC0CA42 /* LiquidGlassStyle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiquidGlassStyle.swift; sourceTree = "<group>"; };
 		F5D37E535A4855F3E47E8536 /* HabitCardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HabitCardView.swift; sourceTree = "<group>"; };
@@ -115,8 +126,8 @@
 		5A1081CFBD5AA0EE849B614F /* HabitBloomApp */ = {
 			isa = PBXGroup;
 			children = (
+				C09268B4213DC4D1CE03921C /* Assets.xcassets */,
 				DD48CD71A798B0BA942BA4F6 /* App */,
-				A35D7D3D9C7841C09E34C601 /* Assets.xcassets */,
 				233D4C0A90914068EE16EA40 /* Models */,
 				C15AA10E053069D35812A6A2 /* Services */,
 				6D14D0EA73A8A066FB6853B3 /* Support */,
@@ -130,6 +141,7 @@
 			children = (
 				FE0677C57B56183F8588A200 /* HabitBloom.app */,
 				9E408CC35B36E09DCC1E33CE /* HabitBloomWidgets.appex */,
+				3C5D80A44B19C02296B0161B /* HabitBloomWidgetsMac.appex */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -161,8 +173,8 @@
 				721095FD72CF3D9FEF03B45D /* CheckInFeedbackService.swift */,
 				4E7CC2D8216B50873CBB20A1 /* HabitModelContainer.swift */,
 				C51BCDB10EDE4722CA441218 /* HabitStatsService.swift */,
-				DCFB9D4DB538157F5A89D874 /* RemoteBackupService.swift */,
 				EE8BE2A8D8808E1509FA3FCD /* ReminderScheduler.swift */,
+				2DD31ABA9F7E02F101B96912 /* RemoteBackupService.swift */,
 				DCF4604AFDB8EFBF839B0FAE /* StickerImageOptimizer.swift */,
 				9E3F1FB50FFA1152DFFA03A2 /* WidgetSnapshotWriter.swift */,
 			);
@@ -207,6 +219,23 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
+		270A798C4EEE8821580692C9 /* HabitBloomWidgetsMac */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 79209363685F722A60EF3F96 /* Build configuration list for PBXNativeTarget "HabitBloomWidgetsMac" */;
+			buildPhases = (
+				65E98CEEEB15EC7C96DEE0F9 /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = HabitBloomWidgetsMac;
+			packageProductDependencies = (
+			);
+			productName = HabitBloomWidgetsMac;
+			productReference = 3C5D80A44B19C02296B0161B /* HabitBloomWidgetsMac.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
 		36FD54E9E8D72113555EBCBF /* HabitBloom */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = 3E7C4AA9ED84304E77825897 /* Build configuration list for PBXNativeTarget "HabitBloom" */;
@@ -219,6 +248,7 @@
 			);
 			dependencies = (
 				96855AEDB9924C18B5387F58 /* PBXTargetDependency */,
+				B0A143D781AABE7A6865E0C3 /* PBXTargetDependency */,
 			);
 			name = HabitBloom;
 			packageProductDependencies = (
@@ -251,8 +281,12 @@
 			isa = PBXProject;
 			attributes = {
 				BuildIndependentTargetsInParallel = YES;
-				LastUpgradeCheck = 1430;
+				LastUpgradeCheck = 1700;
 				TargetAttributes = {
+					270A798C4EEE8821580692C9 = {
+						DevelopmentTeam = ZNSTKHPLY3;
+						ProvisioningStyle = Automatic;
+					};
 					36FD54E9E8D72113555EBCBF = {
 						DevelopmentTeam = ZNSTKHPLY3;
 						ProvisioningStyle = Automatic;
@@ -279,6 +313,7 @@
 			targets = (
 				36FD54E9E8D72113555EBCBF /* HabitBloom */,
 				CD9DA825600EFF85DD1C1087 /* HabitBloomWidgets */,
+				270A798C4EEE8821580692C9 /* HabitBloomWidgetsMac */,
 			);
 		};
 /* End PBXProject section */
@@ -288,7 +323,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				A35D7D3D9C7841C09E34C602 /* Assets.xcassets in Resources */,
+				FD367AFBC7A11C2F5C637622 /* Assets.xcassets in Resources */,
 				B004B71567A8C1EBF851DC69 /* LaunchScreen.storyboard in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -301,6 +336,14 @@
 			buildActionMask = 2147483647;
 			files = (
 				2548E69FEA0E95AEF5CF8CAC /* HabitBloomWidgets.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		65E98CEEEB15EC7C96DEE0F9 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				9A6013DEDF362B5D607B8DC8 /* HabitBloomWidgets.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -322,10 +365,10 @@
 				D834DF9CB1978E33C8B27E0F /* IconCatalog.swift in Sources */,
 				FAF045AE8B797DD56DC1903D /* IconPickerSheet.swift in Sources */,
 				D23472F6F14BF26E6878AFD2 /* LiquidGlassStyle.swift in Sources */,
-				1A41396267D74609D7538D1B /* RemoteBackupService.swift in Sources */,
 				933A32199A963DE7EC5E87CB /* PlatformColors.swift in Sources */,
 				5FE56FF3A2047D771A6B8238 /* ReminderPlanner.swift in Sources */,
 				46EAAB470233649776C3F60E /* ReminderScheduler.swift in Sources */,
+				700AE6F25BD8EAE84CC968FD /* RemoteBackupService.swift in Sources */,
 				BFBC7971F5DFF6DCF1B4D11E /* SettingsView.swift in Sources */,
 				1C6C3F03D9D957834F2BF9AE /* StatsView.swift in Sources */,
 				90DE6B97845E3D13BF23BCE5 /* StickerImageOptimizer.swift in Sources */,
@@ -338,8 +381,15 @@
 /* Begin PBXTargetDependency section */
 		96855AEDB9924C18B5387F58 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
+			platformFilter = ios;
 			target = CD9DA825600EFF85DD1C1087 /* HabitBloomWidgets */;
 			targetProxy = 3E786D3FA995628174CAE1BF /* PBXContainerItemProxy */;
+		};
+		B0A143D781AABE7A6865E0C3 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			platformFilter = maccatalyst;
+			target = 270A798C4EEE8821580692C9 /* HabitBloomWidgetsMac */;
+			targetProxy = 658F82C625B8B021337BD39B /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
@@ -380,6 +430,25 @@
 				SDKROOT = iphoneos;
 				SKIP_INSTALL = YES;
 				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+		903C198B4E870FFC7A7A44B1 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				CODE_SIGN_ENTITLEMENTS = HabitBloomWidgets/HabitBloomWidgets.entitlements;
+				COMBINE_HIDPI_IMAGES = YES;
+				INFOPLIST_FILE = HabitBloomWidgets/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@executable_path/../../../../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.zjx.HabitBloom.widgets;
+				SDKROOT = macosx;
+				SKIP_INSTALL = YES;
 			};
 			name = Release;
 		};
@@ -437,6 +506,9 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
+				HABITBLOOM_REMOTE_BASE_URL = "";
+				HABITBLOOM_REMOTE_DEVICE_KEY = "";
+				HABITBLOOM_REMOTE_WRITE_TOKEN = "";
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
 				MARKETING_VERSION = 1.0;
@@ -444,7 +516,6 @@
 				MTL_FAST_MATH = YES;
 				ONLY_ACTIVE_ARCH = YES;
 				PRODUCT_NAME = "$(TARGET_NAME)";
-				SDKROOT = iphoneos;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 				SWIFT_VERSION = 6.0;
@@ -499,13 +570,15 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
+				HABITBLOOM_REMOTE_BASE_URL = "";
+				HABITBLOOM_REMOTE_DEVICE_KEY = "";
+				HABITBLOOM_REMOTE_WRITE_TOKEN = "";
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
 				MARKETING_VERSION = 1.0;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
 				PRODUCT_NAME = "$(TARGET_NAME)";
-				SDKROOT = iphoneos;
 				SWIFT_COMPILATION_MODE = wholemodule;
 				SWIFT_OPTIMIZATION_LEVEL = "-O";
 				SWIFT_VERSION = 6.0;
@@ -551,6 +624,25 @@
 			};
 			name = Debug;
 		};
+		FCE6EAFCFF84B8DF712DB1F0 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				CODE_SIGN_ENTITLEMENTS = HabitBloomWidgets/HabitBloomWidgets.entitlements;
+				COMBINE_HIDPI_IMAGES = YES;
+				INFOPLIST_FILE = HabitBloomWidgets/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@executable_path/../../../../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.zjx.HabitBloom.widgets;
+				SDKROOT = macosx;
+				SKIP_INSTALL = YES;
+			};
+			name = Debug;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -568,6 +660,15 @@
 			buildConfigurations = (
 				DFE671FFCD6BB8F8A5547956 /* Debug */,
 				78E6A1F56F6262D5CCD0DFB8 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		79209363685F722A60EF3F96 /* Build configuration list for PBXNativeTarget "HabitBloomWidgetsMac" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				FCE6EAFCFF84B8DF712DB1F0 /* Debug */,
+				903C198B4E870FFC7A7A44B1 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Debug;

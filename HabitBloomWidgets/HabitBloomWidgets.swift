@@ -544,7 +544,7 @@ private struct WidgetStickerBackground: View {
                 )
         case "minimal":
             Rectangle()
-                .fill(Color(.secondarySystemBackground))
+                .fill(widgetSecondarySystemBackgroundColor)
                 .overlay(color(for: snapshot.colorName).opacity(0.16), alignment: .leading)
         case "image":
             if let image = widgetImage(for: snapshot) {
@@ -577,7 +577,7 @@ private struct WidgetStickerBackground: View {
             colors: [
                 color(for: snapshot.colorName).opacity(0.20),
                 color(for: snapshot.colorName).opacity(0.08),
-                Color(.systemBackground).opacity(0.92)
+                widgetSystemBackgroundColor.opacity(0.92)
             ],
             startPoint: .topLeading,
             endPoint: .bottomTrailing
@@ -670,6 +670,22 @@ private func color(for name: String) -> Color {
     case "rose": .pink
     default: .red
     }
+}
+
+private var widgetSystemBackgroundColor: Color {
+#if os(macOS)
+    Color(nsColor: .windowBackgroundColor)
+#else
+    Color(uiColor: .systemBackground)
+#endif
+}
+
+private var widgetSecondarySystemBackgroundColor: Color {
+#if os(macOS)
+    Color(nsColor: .controlBackgroundColor)
+#else
+    Color(uiColor: .secondarySystemBackground)
+#endif
 }
 
 private extension String {

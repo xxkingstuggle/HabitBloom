@@ -1,6 +1,7 @@
 name: HabitBloom
 options:
   minimumXcodeGenVersion: 2.42.0
+  xcodeVersion: "17.0"
   deploymentTarget:
     iOS: "17.0"
     macOS: "14.0"
@@ -15,6 +16,21 @@ settings:
     HABITBLOOM_REMOTE_DEVICE_KEY: ""
     HABITBLOOM_REMOTE_WRITE_TOKEN: ""
 packages: {}
+schemes:
+  HabitBloom:
+    build:
+      targets:
+        HabitBloom: all
+    run:
+      config: Debug
+    test:
+      config: Debug
+    profile:
+      config: Release
+    analyze:
+      config: Debug
+    archive:
+      config: Release
 targets:
   HabitBloom:
     type: application
@@ -33,10 +49,26 @@ targets:
         SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD: YES
     dependencies:
       - target: HabitBloomWidgets
+        platformFilter: iOS
+      - target: HabitBloomWidgetsMac
+        platformFilter: macOS
   HabitBloomWidgets:
     type: app-extension
     platform: iOS
     deploymentTarget: "17.0"
+    sources:
+      - path: HabitBloomWidgets
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.zjx.HabitBloom.widgets
+        INFOPLIST_FILE: HabitBloomWidgets/Info.plist
+        CODE_SIGN_ENTITLEMENTS: HabitBloomWidgets/HabitBloomWidgets.entitlements
+        SKIP_INSTALL: YES
+        APPLICATION_EXTENSION_API_ONLY: YES
+  HabitBloomWidgetsMac:
+    type: app-extension
+    platform: macOS
+    deploymentTarget: "14.0"
     sources:
       - path: HabitBloomWidgets
     settings:
