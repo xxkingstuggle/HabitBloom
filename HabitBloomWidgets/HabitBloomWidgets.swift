@@ -165,7 +165,20 @@ struct HabitWidgetEntity: AppEntity {
 struct HabitWidgetEntityQuery: EntityQuery {
     func entities(for identifiers: [String]) async throws -> [HabitWidgetEntity] {
         let entities = await loadWidgetEntities(reason: "entities")
-        return entities.filter { identifiers.contains($0.id) }
+        let entitiesByID = Dictionary(uniqueKeysWithValues: entities.map { ($0.id, $0) })
+        return identifiers.compactMap { identifier in
+            if let entity = entitiesByID[identifier] {
+                return entity
+            }
+            guard UUID(uuidString: identifier) != nil else {
+                return nil
+            }
+            return HabitWidgetEntity(
+                id: identifier,
+                name: "默认目标",
+                detail: "使用当前可用目标"
+            )
+        }
     }
 
     func suggestedEntities() async throws -> [HabitWidgetEntity] {
