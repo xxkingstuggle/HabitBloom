@@ -79,6 +79,7 @@
 		4107A7C2B23C184B009803FC /* HabitEditorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HabitEditorView.swift; sourceTree = "<group>"; };
 		4E5B578E09B74B9576F3768C /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		4E7CC2D8216B50873CBB20A1 /* HabitModelContainer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HabitModelContainer.swift; sourceTree = "<group>"; };
+		526872D97CFB137AD3E2A054 /* HabitBloomMac.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = HabitBloomMac.entitlements; sourceTree = "<group>"; };
 		6970689F40109E9868666FF6 /* IconPickerSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IconPickerSheet.swift; sourceTree = "<group>"; };
 		721095FD72CF3D9FEF03B45D /* CheckInFeedbackService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CheckInFeedbackService.swift; sourceTree = "<group>"; };
 		72AA9F7B648AF84697F4D010 /* HabitEntities.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HabitEntities.swift; sourceTree = "<group>"; };
@@ -95,6 +96,7 @@
 		C09268B4213DC4D1CE03921C /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		C51BCDB10EDE4722CA441218 /* HabitStatsService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HabitStatsService.swift; sourceTree = "<group>"; };
 		CB0162740D1F7021F3AA7256 /* PlatformColors.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlatformColors.swift; sourceTree = "<group>"; };
+		D5A70C47609350A7CD064FA3 /* HabitBloomWidgetsMac.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = HabitBloomWidgetsMac.entitlements; sourceTree = "<group>"; };
 		DCB5FD2FE83A7CB380A23971 /* LaunchScreen.storyboard */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; path = LaunchScreen.storyboard; sourceTree = "<group>"; };
 		DCF4604AFDB8EFBF839B0FAE /* StickerImageOptimizer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StickerImageOptimizer.swift; sourceTree = "<group>"; };
 		EE8BE2A8D8808E1509FA3FCD /* ReminderScheduler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReminderScheduler.swift; sourceTree = "<group>"; };
@@ -118,6 +120,7 @@
 			children = (
 				BB3CA1B87759AD55EFF8CDE2 /* HabitBloomWidgets.entitlements */,
 				0543C8E2EAC7CB98063BD6CF /* HabitBloomWidgets.swift */,
+				D5A70C47609350A7CD064FA3 /* HabitBloomWidgetsMac.entitlements */,
 				B021B1E5B6D5E7CCA8C28EF9 /* Info.plist */,
 			);
 			path = HabitBloomWidgets;
@@ -150,6 +153,7 @@
 			isa = PBXGroup;
 			children = (
 				A94618CAC6044CD7136D7537 /* HabitBloom.entitlements */,
+				526872D97CFB137AD3E2A054 /* HabitBloomMac.entitlements */,
 				797AC9BEAA5268A5817F2D9A /* Info.plist */,
 				DCB5FD2FE83A7CB380A23971 /* LaunchScreen.storyboard */,
 			);
@@ -399,6 +403,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = HabitBloomApp/Support/HabitBloom.entitlements;
+				"CODE_SIGN_ENTITLEMENTS[sdk=macosx*]" = HabitBloomApp/Support/HabitBloomMac.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				INFOPLIST_FILE = HabitBloomApp/Support/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
@@ -437,8 +442,9 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				APPLICATION_EXTENSION_API_ONLY = YES;
-				CODE_SIGN_ENTITLEMENTS = HabitBloomWidgets/HabitBloomWidgets.entitlements;
+				CODE_SIGN_ENTITLEMENTS = HabitBloomWidgets/HabitBloomWidgetsMac.entitlements;
 				COMBINE_HIDPI_IMAGES = YES;
+				ENABLE_APP_SANDBOX = YES;
 				INFOPLIST_FILE = HabitBloomWidgets/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -609,6 +615,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = HabitBloomApp/Support/HabitBloom.entitlements;
+				"CODE_SIGN_ENTITLEMENTS[sdk=macosx*]" = HabitBloomApp/Support/HabitBloomMac.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				INFOPLIST_FILE = HabitBloomApp/Support/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
@@ -628,8 +635,9 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				APPLICATION_EXTENSION_API_ONLY = YES;
-				CODE_SIGN_ENTITLEMENTS = HabitBloomWidgets/HabitBloomWidgets.entitlements;
+				CODE_SIGN_ENTITLEMENTS = HabitBloomWidgets/HabitBloomWidgetsMac.entitlements;
 				COMBINE_HIDPI_IMAGES = YES;
+				ENABLE_APP_SANDBOX = YES;
 				INFOPLIST_FILE = HabitBloomWidgets/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",

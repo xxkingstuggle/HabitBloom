@@ -44,6 +44,7 @@ targets:
         PRODUCT_BUNDLE_IDENTIFIER: com.zjx.HabitBloom
         INFOPLIST_FILE: HabitBloomApp/Support/Info.plist
         CODE_SIGN_ENTITLEMENTS: HabitBloomApp/Support/HabitBloom.entitlements
+        CODE_SIGN_ENTITLEMENTS[sdk=macosx*]: HabitBloomApp/Support/HabitBloomMac.entitlements
         TARGETED_DEVICE_FAMILY: "1,6"
         SUPPORTS_MACCATALYST: YES
         SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD: YES
@@ -75,6 +76,7 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.zjx.HabitBloom.widgets
         INFOPLIST_FILE: HabitBloomWidgets/Info.plist
-        CODE_SIGN_ENTITLEMENTS: HabitBloomWidgets/HabitBloomWidgets.entitlements
+        CODE_SIGN_ENTITLEMENTS: HabitBloomWidgets/HabitBloomWidgetsMac.entitlements
+        ENABLE_APP_SANDBOX: YES
         SKIP_INSTALL: YES
         APPLICATION_EXTENSION_API_ONLY: YES
