@@ -451,16 +451,9 @@ struct SummaryHabitWidgetView: View {
 
 struct WidgetBackground: View {
     let snapshot: WidgetHabitSnapshot
-    @Environment(\.widgetRenderingMode) private var renderingMode
 
     var body: some View {
-        if renderingMode == .fullColor {
-            WidgetStickerBackground(snapshot: snapshot)
-        } else {
-            Rectangle()
-                .fill(widgetSystemBackgroundColor)
-                .overlay(Color.primary.opacity(0.08))
-        }
+        WidgetStickerBackground(snapshot: snapshot)
     }
 }
 
@@ -595,8 +588,7 @@ private struct WidgetStickerBackground: View {
         case "image":
             if let image = widgetImage(for: snapshot) {
                 GeometryReader { proxy in
-                    Image(platformImage: image)
-                        .resizable()
+                    WidgetBackgroundImage(image: image)
                         .scaledToFill()
                         .frame(width: proxy.size.width, height: proxy.size.height)
                         .clipped()
@@ -628,6 +620,22 @@ private struct WidgetStickerBackground: View {
             startPoint: .topLeading,
             endPoint: .bottomTrailing
         )
+    }
+}
+
+private struct WidgetBackgroundImage: View {
+    let image: PlatformImage
+
+    @ViewBuilder
+    var body: some View {
+        if #available(iOS 18.0, macOS 15.0, *) {
+            Image(platformImage: image)
+                .resizable()
+                .widgetAccentedRenderingMode(.desaturated)
+        } else {
+            Image(platformImage: image)
+                .resizable()
+        }
     }
 }
 
