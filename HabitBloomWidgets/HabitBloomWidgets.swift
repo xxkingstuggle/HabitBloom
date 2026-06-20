@@ -317,48 +317,51 @@ private enum RemoteWidgetClient {
 struct SingleHabitWidgetView: View {
     let entry: HabitTimelineEntry
     @Environment(\.widgetFamily) private var family
+    @Environment(\.widgetRenderingMode) private var renderingMode
+    @Environment(\.showsWidgetContainerBackground) private var showsContainerBackground
 
     private var habit: WidgetHabitSnapshot { entry.selectedHabit }
+    private var usesImagePresentation: Bool {
+        habit.usesImageBackground
+            && renderingMode == .fullColor
+            && showsContainerBackground
+    }
 
     var body: some View {
-        ZStack(alignment: .topLeading) {
-            WidgetStickerBackground(snapshot: habit)
-
-            Group {
-                if family == .systemMedium {
-                    VStack(alignment: .leading, spacing: 14) {
-                        HStack(alignment: .top) {
-                            WidgetIcon(systemName: habit.icon, colorName: habit.colorName, isOnImage: habit.usesImageBackground)
-                            Spacer(minLength: 10)
-                            CompletionDot(isCompleted: habit.isCompletedToday, isOnImage: habit.usesImageBackground)
-                        }
-                        Spacer(minLength: 6)
-                        HStack(alignment: .bottom, spacing: 12) {
-                            WidgetTextBlock(habit: habit, showsTotal: true)
-                            Spacer(minLength: 8)
-                            DaysBlock(days: habit.streakDays, title: "连续", isOnImage: habit.usesImageBackground)
-                        }
-                        WidgetProgressBar(value: habit.effectiveCompletionRate, tintName: habit.colorName, isOnImage: habit.usesImageBackground)
+        Group {
+            if family == .systemMedium {
+                VStack(alignment: .leading, spacing: 14) {
+                    HStack(alignment: .top) {
+                        WidgetIcon(systemName: habit.icon, colorName: habit.colorName, isOnImage: usesImagePresentation)
+                        Spacer(minLength: 10)
+                        CompletionDot(isCompleted: habit.isCompletedToday, isOnImage: usesImagePresentation)
                     }
-                } else {
-                    VStack(alignment: .leading, spacing: 10) {
-                        HStack {
-                            WidgetIcon(systemName: habit.icon, colorName: habit.colorName, isOnImage: habit.usesImageBackground)
-                            Spacer()
-                            CompletionDot(isCompleted: habit.isCompletedToday, isOnImage: habit.usesImageBackground)
-                        }
+                    Spacer(minLength: 6)
+                    HStack(alignment: .bottom, spacing: 12) {
+                        WidgetTextBlock(habit: habit, showsTotal: true, isOnImage: usesImagePresentation)
                         Spacer(minLength: 8)
-                        HStack(alignment: .bottom, spacing: 8) {
-                            WidgetTextBlock(habit: habit)
-                            Spacer(minLength: 6)
-                            DaysBlock(days: habit.streakDays, title: "连续", compact: true, isOnImage: habit.usesImageBackground)
-                        }
-                        WidgetProgressBar(value: habit.effectiveCompletionRate, tintName: habit.colorName, isOnImage: habit.usesImageBackground)
+                        DaysBlock(days: habit.streakDays, title: "连续", isOnImage: usesImagePresentation)
                     }
+                    WidgetProgressBar(value: habit.effectiveCompletionRate, tintName: habit.colorName, isOnImage: usesImagePresentation)
+                }
+            } else {
+                VStack(alignment: .leading, spacing: 10) {
+                    HStack {
+                        WidgetIcon(systemName: habit.icon, colorName: habit.colorName, isOnImage: usesImagePresentation)
+                        Spacer()
+                        CompletionDot(isCompleted: habit.isCompletedToday, isOnImage: usesImagePresentation)
+                    }
+                    Spacer(minLength: 8)
+                    HStack(alignment: .bottom, spacing: 8) {
+                        WidgetTextBlock(habit: habit, isOnImage: usesImagePresentation)
+                        Spacer(minLength: 6)
+                        DaysBlock(days: habit.streakDays, title: "连续", compact: true, isOnImage: usesImagePresentation)
+                    }
+                    WidgetProgressBar(value: habit.effectiveCompletionRate, tintName: habit.colorName, isOnImage: usesImagePresentation)
                 }
             }
-            .padding()
         }
+        .padding()
     }
 }
 
@@ -448,26 +451,34 @@ struct SummaryHabitWidgetView: View {
 
 struct WidgetBackground: View {
     let snapshot: WidgetHabitSnapshot
+    @Environment(\.widgetRenderingMode) private var renderingMode
 
     var body: some View {
-        WidgetStickerBackground(snapshot: snapshot)
+        if renderingMode == .fullColor {
+            WidgetStickerBackground(snapshot: snapshot)
+        } else {
+            Rectangle()
+                .fill(widgetSystemBackgroundColor)
+                .overlay(Color.primary.opacity(0.08))
+        }
     }
 }
 
 private struct WidgetTextBlock: View {
     let habit: WidgetHabitSnapshot
     var showsTotal = false
+    var isOnImage = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 3) {
             Text(habit.name)
                 .font(.headline.weight(.bold))
-                .foregroundStyle(habit.usesImageBackground ? .white : .primary)
+                .foregroundStyle(isOnImage ? .white : .primary)
                 .lineLimit(2)
             if showsTotal {
                 Text("累计 \(habit.totalDays) 天")
                     .font(.caption.weight(.semibold))
-                    .foregroundStyle(habit.usesImageBackground ? .white.opacity(0.82) : .secondary)
+                    .foregroundStyle(isOnImage ? .white.opacity(0.82) : .secondary)
             }
         }
     }
