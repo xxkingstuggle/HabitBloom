@@ -23,28 +23,30 @@ struct IconPickerSheet: View {
                 .pickerStyle(.segmented)
                 .padding()
 
-                ScrollView {
-                    LazyVStack(alignment: .leading, spacing: 18) {
-                        customInputSection
+                List {
+                    customInputSection
+                        .iconPickerListRow()
 
-                        if visibleCategories.isEmpty {
-                            ContentUnavailableView("没有找到图标", systemImage: "magnifyingglass", description: Text("换个关键词，或者使用上面的自定义输入。"))
-                                .frame(maxWidth: .infinity)
-                                .padding(.top, 32)
-                        } else {
-                            ForEach(visibleCategories) { category in
-                                IconCategorySection(
-                                    category: category,
-                                    selection: selection,
-                                    columns: columns,
-                                    choose: choose
-                                )
-                            }
+                    if visibleCategories.isEmpty {
+                        ContentUnavailableView("没有找到图标", systemImage: "magnifyingglass", description: Text("换个关键词，或者使用上面的自定义输入。"))
+                            .frame(maxWidth: .infinity)
+                            .padding(.top, 32)
+                            .iconPickerListRow()
+                    } else {
+                        ForEach(visibleCategories) { category in
+                            IconCategorySection(
+                                category: category,
+                                selection: selection,
+                                columns: columns,
+                                choose: choose
+                            )
+                            .iconPickerListRow()
                         }
                     }
-                    .padding(.horizontal)
-                    .padding(.bottom, 24)
                 }
+                .listStyle(.plain)
+                .scrollIndicators(.visible)
+                .contentMargins(.bottom, 24, for: .scrollContent)
             }
             .navigationTitle("选择图标")
             .navigationBarTitleDisplayMode(.inline)
@@ -140,6 +142,14 @@ struct IconPickerSheet: View {
     private func choose(_ icon: String) {
         selection = icon
         dismiss()
+    }
+}
+
+private extension View {
+    func iconPickerListRow() -> some View {
+        listRowInsets(EdgeInsets(top: 9, leading: 16, bottom: 9, trailing: 16))
+            .listRowSeparator(.hidden)
+            .listRowBackground(Color.clear)
     }
 }
 

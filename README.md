@@ -19,6 +19,8 @@
 
 ## 构建检查
 
+Bundle ID 固定为 `com.zjx.HabitBloom` 和 `com.zjx.HabitBloom.widgets`。不要通过修改 Bundle ID 绕过免费账号的签名或 App ID 限额；额度不足时只进行无签名构建检查，等待原有描述文件续期。
+
 ```sh
 swift run HabitCoreSmokeTests
 swift run HabitCoreStressTests
