@@ -108,9 +108,15 @@ struct HabitEditorView: View {
                     cardStyle = HabitCardKind.image.rawValue
                 }
             }
+            #if targetEnvironment(macCatalyst)
+            .fullScreenCover(isPresented: $showingIconPicker) {
+                IconPickerSheet(selection: $icon)
+            }
+            #else
             .sheet(isPresented: $showingIconPicker) {
                 IconPickerSheet(selection: $icon)
             }
+            #endif
         }
     }
 

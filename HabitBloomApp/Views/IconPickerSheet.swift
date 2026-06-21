@@ -6,11 +6,14 @@ import UIKit
 struct IconPickerSheet: View {
     @Environment(\.dismiss) private var dismiss
     @Binding var selection: String
+
     @State private var mode = IconPickerMode.emoji
     @State private var query = ""
     @State private var customIcon = ""
+    @State private var selectedCategoryID: String?
 
-    private let columns = Array(repeating: GridItem(.flexible(), spacing: 10), count: 6)
+    private let mobileColumns = Array(repeating: GridItem(.flexible(), spacing: 10), count: 6)
+    private let desktopColumns = [GridItem(.adaptive(minimum: 96, maximum: 132), spacing: 12)]
 
     var body: some View {
         NavigationStack {
@@ -23,53 +26,173 @@ struct IconPickerSheet: View {
                 .pickerStyle(.segmented)
                 .padding()
 
-                List {
-                    customInputSection
-                        .iconPickerListRow()
-
-                    if visibleCategories.isEmpty {
-                        ContentUnavailableView("没有找到图标", systemImage: "magnifyingglass", description: Text("换个关键词，或者使用上面的自定义输入。"))
-                            .frame(maxWidth: .infinity)
-                            .padding(.top, 32)
-                            .iconPickerListRow()
-                    } else {
-                        ForEach(visibleCategories) { category in
-                            IconCategorySection(
-                                category: category,
-                                selection: selection,
-                                columns: columns,
-                                choose: choose
-                            )
-                            .iconPickerListRow()
-                        }
-                    }
-                }
-                .listStyle(.plain)
-                .scrollIndicators(.visible)
-                .contentMargins(.bottom, 24, for: .scrollContent)
+                #if targetEnvironment(macCatalyst)
+                desktopContent
+                #else
+                mobileContent
+                #endif
             }
             .navigationTitle("选择图标")
             .navigationBarTitleDisplayMode(.inline)
-            .searchable(text: $query, placement: .navigationBarDrawer(displayMode: .always), prompt: "搜索图标、中文、英文名")
+            .searchable(text: $query, prompt: "搜索图标、中文、英文名")
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("关闭") { dismiss() }
                 }
             }
+            .onAppear(perform: selectFirstCategoryIfNeeded)
             .onChange(of: mode) {
                 query = ""
                 customIcon = ""
+                selectedCategoryID = categories.first?.id
             }
         }
     }
 
-    private var visibleCategories: [IconCategory] {
-        IconCatalog.categories(for: mode)
-            .compactMap { category in
-                let candidates = category.candidates.filter { $0.matches(query) }
-                guard !candidates.isEmpty else { return nil }
-                return IconCategory(title: category.title, mode: category.mode, candidates: candidates)
+    private var mobileContent: some View {
+        List {
+            customInputSection
+                .iconPickerListRow()
+
+            if visibleCategories.isEmpty {
+                emptySearchView
+                    .iconPickerListRow()
+            } else {
+                ForEach(visibleCategories) { category in
+                    IconCategorySection(
+                        category: category,
+                        selection: selection,
+                        columns: mobileColumns,
+                        choose: choose
+                    )
+                    .iconPickerListRow()
+                }
             }
+        }
+        .listStyle(.plain)
+        .scrollIndicators(.visible)
+        .contentMargins(.bottom, 24, for: .scrollContent)
+    }
+
+    #if targetEnvironment(macCatalyst)
+    private var desktopContent: some View {
+        VStack(spacing: 0) {
+            customInputSection
+                .padding(.horizontal, 18)
+                .padding(.bottom, 14)
+
+            Divider()
+
+            HStack(spacing: 0) {
+                categorySidebar
+                    .frame(width: 176)
+
+                Divider()
+
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 14) {
+                        HStack(alignment: .firstTextBaseline) {
+                            Text(desktopSectionTitle)
+                                .font(.title3.weight(.bold))
+                            Text("\(desktopCandidates.count)")
+                                .font(.caption.weight(.semibold))
+                                .foregroundStyle(.secondary)
+                        }
+
+                        if desktopCandidates.isEmpty {
+                            emptySearchView
+                                .frame(maxWidth: .infinity)
+                        } else {
+                            IconCandidateGrid(
+                                candidates: desktopCandidates,
+                                selection: selection,
+                                columns: desktopColumns,
+                                choose: choose
+                            )
+                        }
+                    }
+                    .padding(18)
+                    .frame(maxWidth: .infinity, alignment: .topLeading)
+                }
+                .scrollIndicators(.visible)
+            }
+        }
+        .frame(minWidth: 680, minHeight: 520)
+    }
+
+    private var categorySidebar: some View {
+        ScrollView {
+            LazyVStack(spacing: 5) {
+                ForEach(categories) { category in
+                    Button {
+                        query = ""
+                        selectedCategoryID = category.id
+                    } label: {
+                        HStack {
+                            Text(category.title)
+                                .lineLimit(1)
+                            Spacer()
+                            Text("\(category.candidates.count)")
+                                .font(.caption.monospacedDigit())
+                                .foregroundStyle(.secondary)
+                        }
+                        .padding(.horizontal, 12)
+                        .frame(height: 38)
+                        .background(
+                            selectedCategoryID == category.id && query.isEmpty
+                                ? Color.accentColor.opacity(0.16)
+                                : Color.clear,
+                            in: RoundedRectangle(cornerRadius: 8, style: .continuous)
+                        )
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .padding(10)
+        }
+    }
+
+    private var desktopCandidates: [IconCandidate] {
+        if !normalizedQuery.isEmpty {
+            return categories.flatMap(\.candidates).filter { $0.matches(query) }
+        }
+
+        return categories.first(where: { $0.id == selectedCategoryID })?.candidates
+            ?? categories.first?.candidates
+            ?? []
+    }
+
+    private var desktopSectionTitle: String {
+        if !normalizedQuery.isEmpty { return "搜索结果" }
+        return categories.first(where: { $0.id == selectedCategoryID })?.title
+            ?? categories.first?.title
+            ?? mode.title
+    }
+    #endif
+
+    private var categories: [IconCategory] {
+        IconCatalog.categories(for: mode)
+    }
+
+    private var visibleCategories: [IconCategory] {
+        categories.compactMap { category in
+            let candidates = category.candidates.filter { $0.matches(query) }
+            guard !candidates.isEmpty else { return nil }
+            return IconCategory(title: category.title, mode: category.mode, candidates: candidates)
+        }
+    }
+
+    private var normalizedQuery: String {
+        query.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    private var emptySearchView: some View {
+        ContentUnavailableView(
+            "没有找到图标",
+            systemImage: "magnifyingglass",
+            description: Text("换个关键词，或者使用上面的自定义输入。")
+        )
+        .padding(.top, 32)
     }
 
     private var trimmedCustomIcon: String {
@@ -139,6 +262,13 @@ struct IconPickerSheet: View {
         }
     }
 
+    private func selectFirstCategoryIfNeeded() {
+        guard categories.contains(where: { $0.id == selectedCategoryID }) else {
+            selectedCategoryID = categories.first?.id
+            return
+        }
+    }
+
     private func choose(_ icon: String) {
         selection = icon
         dismiss()
@@ -169,32 +299,48 @@ private struct IconCategorySection: View {
                     .foregroundStyle(.secondary)
             }
 
-            LazyVGrid(columns: columns, spacing: 10) {
-                ForEach(category.candidates) { candidate in
-                    Button {
-                        choose(candidate.value)
-                    } label: {
-                        VStack(spacing: 5) {
-                            HabitIconGlyph(icon: candidate.value, size: candidate.value.isEmojiIcon ? 28 : 22)
-                                .foregroundStyle(selection == candidate.value ? Color.accentColor : .primary)
-                                .frame(height: 29)
-                            Text(candidate.name)
-                                .font(.system(size: 10, weight: .medium))
-                                .foregroundStyle(.secondary)
-                                .lineLimit(1)
-                                .minimumScaleFactor(0.72)
-                        }
-                        .frame(maxWidth: .infinity)
-                        .frame(height: 62)
-                        .background(selection == candidate.value ? Color.accentColor.opacity(0.16) : Color.secondary.opacity(0.10), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                                .strokeBorder(selection == candidate.value ? Color.accentColor.opacity(0.55) : Color.clear, lineWidth: 1)
-                        )
+            IconCandidateGrid(
+                candidates: category.candidates,
+                selection: selection,
+                columns: columns,
+                choose: choose
+            )
+        }
+    }
+}
+
+private struct IconCandidateGrid: View {
+    let candidates: [IconCandidate]
+    let selection: String
+    let columns: [GridItem]
+    let choose: (String) -> Void
+
+    var body: some View {
+        LazyVGrid(columns: columns, spacing: 10) {
+            ForEach(candidates) { candidate in
+                Button {
+                    choose(candidate.value)
+                } label: {
+                    VStack(spacing: 5) {
+                        HabitIconGlyph(icon: candidate.value, size: candidate.value.isEmojiIcon ? 28 : 22)
+                            .foregroundStyle(selection == candidate.value ? Color.accentColor : .primary)
+                            .frame(height: 29)
+                        Text(candidate.name)
+                            .font(.system(size: 10, weight: .medium))
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.72)
                     }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel(candidate.name)
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 62)
+                    .background(selection == candidate.value ? Color.accentColor.opacity(0.16) : Color.secondary.opacity(0.10), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 16, style: .continuous)
+                            .strokeBorder(selection == candidate.value ? Color.accentColor.opacity(0.55) : Color.clear, lineWidth: 1)
+                    )
                 }
+                .buttonStyle(.plain)
+                .accessibilityLabel(candidate.name)
             }
         }
     }
