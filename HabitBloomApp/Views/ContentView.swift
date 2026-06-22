@@ -49,18 +49,6 @@ struct ContentView: View {
             .tag(MainTab.settings)
         }
         .tint(.accentColor)
-        #if targetEnvironment(macCatalyst)
-        .fullScreenCover(isPresented: $showingEditor, onDismiss: {
-            refreshDerivedStateAndWidgets()
-        }) {
-            HabitEditorView(habit: nil)
-        }
-        .fullScreenCover(item: $selectedHabit, onDismiss: {
-            refreshDerivedStateAndWidgets()
-        }) { habit in
-            HabitEditorView(habit: habit)
-        }
-        #else
         .sheet(isPresented: $showingEditor, onDismiss: {
             refreshDerivedStateAndWidgets()
         }) {
@@ -71,7 +59,6 @@ struct ContentView: View {
         }) { habit in
             HabitEditorView(habit: habit)
         }
-        #endif
         .task {
             refreshDerivedStateAndWidgets()
         }
