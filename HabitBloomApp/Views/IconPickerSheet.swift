@@ -13,7 +13,6 @@ struct IconPickerSheet: View {
     @State private var selectedCategoryID: String?
 
     private let mobileColumns = Array(repeating: GridItem(.flexible(), spacing: 10), count: 6)
-    private let desktopColumns = [GridItem(.adaptive(minimum: 96, maximum: 132), spacing: 12)]
 
     var body: some View {
         NavigationStack {
@@ -89,31 +88,28 @@ struct IconPickerSheet: View {
 
                 Divider()
 
-                ScrollView {
-                    VStack(alignment: .leading, spacing: 14) {
+                List {
+                    Section {
+                        ForEach(desktopCandidates) { candidate in
+                            desktopCandidateRow(candidate)
+                        }
+                    } header: {
                         HStack(alignment: .firstTextBaseline) {
                             Text(desktopSectionTitle)
-                                .font(.title3.weight(.bold))
+                            Spacer()
                             Text("\(desktopCandidates.count)")
-                                .font(.caption.weight(.semibold))
+                                .font(.caption.monospacedDigit())
                                 .foregroundStyle(.secondary)
                         }
-
-                        if desktopCandidates.isEmpty {
-                            emptySearchView
-                                .frame(maxWidth: .infinity)
-                        } else {
-                            IconCandidateGrid(
-                                candidates: desktopCandidates,
-                                selection: selection,
-                                columns: desktopColumns,
-                                choose: choose
-                            )
-                        }
                     }
-                    .padding(18)
-                    .frame(maxWidth: .infinity, alignment: .topLeading)
+
+                    if desktopCandidates.isEmpty {
+                        emptySearchView
+                            .frame(maxWidth: .infinity)
+                            .listRowSeparator(.hidden)
+                    }
                 }
+                .listStyle(.plain)
                 .scrollIndicators(.visible)
             }
         }
@@ -121,35 +117,63 @@ struct IconPickerSheet: View {
     }
 
     private var categorySidebar: some View {
-        ScrollView {
-            LazyVStack(spacing: 5) {
-                ForEach(categories) { category in
-                    Button {
-                        query = ""
-                        selectedCategoryID = category.id
-                    } label: {
-                        HStack {
-                            Text(category.title)
-                                .lineLimit(1)
-                            Spacer()
-                            Text("\(category.candidates.count)")
-                                .font(.caption.monospacedDigit())
-                                .foregroundStyle(.secondary)
-                        }
-                        .padding(.horizontal, 12)
-                        .frame(height: 38)
-                        .background(
-                            selectedCategoryID == category.id && query.isEmpty
-                                ? Color.accentColor.opacity(0.16)
-                                : Color.clear,
-                            in: RoundedRectangle(cornerRadius: 8, style: .continuous)
-                        )
+        List(categories) { category in
+            Button {
+                query = ""
+                selectedCategoryID = category.id
+            } label: {
+                HStack {
+                    Text(category.title)
+                        .lineLimit(1)
+                    Spacer()
+                    Text("\(category.candidates.count)")
+                        .font(.caption.monospacedDigit())
+                        .foregroundStyle(.secondary)
+                }
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .listRowBackground(
+                selectedCategoryID == category.id && query.isEmpty
+                    ? Color.accentColor.opacity(0.16)
+                    : Color.clear
+            )
+        }
+        .listStyle(.plain)
+        .scrollIndicators(.visible)
+    }
+
+    private func desktopCandidateRow(_ candidate: IconCandidate) -> some View {
+        Button {
+            choose(candidate.value)
+        } label: {
+            HStack(spacing: 14) {
+                HabitIconGlyph(icon: candidate.value, size: candidate.value.isEmojiIcon ? 30 : 23)
+                    .foregroundStyle(selection == candidate.value ? Color.accentColor : .primary)
+                    .frame(width: 42, height: 42)
+                    .background(Color.secondary.opacity(0.10), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(candidate.name)
+                        .font(.body.weight(.medium))
+                    if candidate.mode == .symbol {
+                        Text(candidate.value)
+                            .font(.caption.monospaced())
+                            .foregroundStyle(.secondary)
                     }
-                    .buttonStyle(.plain)
+                }
+
+                Spacer()
+
+                if selection == candidate.value {
+                    Image(systemName: "checkmark.circle.fill")
+                        .foregroundStyle(Color.accentColor)
                 }
             }
-            .padding(10)
+            .contentShape(Rectangle())
         }
+        .buttonStyle(.plain)
+        .accessibilityLabel(candidate.name)
     }
 
     private var desktopCandidates: [IconCandidate] {
