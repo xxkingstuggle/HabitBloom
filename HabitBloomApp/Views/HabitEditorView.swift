@@ -108,16 +108,23 @@ struct HabitEditorView: View {
                     cardStyle = HabitCardKind.image.rawValue
                 }
             }
-            #if targetEnvironment(macCatalyst)
-            .fullScreenCover(isPresented: $showingIconPicker) {
-                IconPickerSheet(selection: $icon)
-            }
-            #else
-            .sheet(isPresented: $showingIconPicker) {
-                IconPickerSheet(selection: $icon)
-            }
-            #endif
         }
+        #if targetEnvironment(macCatalyst)
+        .overlay {
+            if showingIconPicker {
+                IconPickerSheet(
+                    selection: $icon,
+                    closeAction: { showingIconPicker = false }
+                )
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .background(.background)
+            }
+        }
+        #else
+        .sheet(isPresented: $showingIconPicker) {
+            IconPickerSheet(selection: $icon)
+        }
+        #endif
     }
 
     private var reminderDateBinding: Binding<Date> {

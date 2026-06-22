@@ -6,6 +6,7 @@ import UIKit
 struct IconPickerSheet: View {
     @Environment(\.dismiss) private var dismiss
     @Binding var selection: String
+    var closeAction: (() -> Void)?
 
     @State private var mode = IconPickerMode.emoji
     @State private var query = ""
@@ -13,6 +14,11 @@ struct IconPickerSheet: View {
     @State private var selectedCategoryID: String?
 
     private let mobileColumns = Array(repeating: GridItem(.flexible(), spacing: 10), count: 6)
+
+    init(selection: Binding<String>, closeAction: (() -> Void)? = nil) {
+        _selection = selection
+        self.closeAction = closeAction
+    }
 
     var body: some View {
         NavigationStack {
@@ -36,7 +42,7 @@ struct IconPickerSheet: View {
             .searchable(text: $query, prompt: "搜索图标、中文、英文名")
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("关闭") { dismiss() }
+                    Button("关闭", action: close)
                 }
             }
             .onAppear(perform: selectFirstCategoryIfNeeded)
@@ -295,7 +301,15 @@ struct IconPickerSheet: View {
 
     private func choose(_ icon: String) {
         selection = icon
-        dismiss()
+        close()
+    }
+
+    private func close() {
+        if let closeAction {
+            closeAction()
+        } else {
+            dismiss()
+        }
     }
 }
 
