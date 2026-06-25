@@ -1,5 +1,10 @@
 # HabitBloom
 
+[![Swift](https://img.shields.io/badge/Swift-iOS%20app-orange)](https://www.swift.org/)
+[![SwiftUI](https://img.shields.io/badge/SwiftUI-interface-blue)](https://developer.apple.com/xcode/swiftui/)
+[![SwiftData](https://img.shields.io/badge/SwiftData-local%20storage-111827)](https://developer.apple.com/xcode/swiftdata/)
+[![WidgetKit](https://img.shields.io/badge/WidgetKit-enabled-0f766e)](https://developer.apple.com/widgets/)
+
 HabitBloom 是一款使用 SwiftUI 开发的打卡应用，面向 iPhone、iPad、Apple Silicon Mac 和桌面小组件。它的重点不是复杂社交或账号系统，而是把每天的目标做成清晰、好看、容易完成的「习惯卡片」。
 
 每个目标都可以自定义名称、图标、颜色、卡片样式、提醒时间和打卡频率。应用内提供统计、连续天数、月度热力图、打卡动画和音效；桌面小组件可以展示单个目标、多个目标或总体完成情况。
