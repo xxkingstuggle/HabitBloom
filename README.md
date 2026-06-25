@@ -39,6 +39,61 @@ cloudflare/habitbloom-widget/
 
 应用本地数据使用 SwiftData 保存。小组件需要的数据会被整理成紧凑快照。正常 Xcode 安装时可以通过 App Group 共享快照；侧载重签名时，App Group 可能失效，因此项目提供 Cloudflare 远程快照作为更稳定的方案。
 
+## 快速开始
+
+克隆仓库：
+
+```sh
+git clone https://github.com/xxkingstuggle/HabitBloom.git
+cd HabitBloom
+```
+
+运行核心逻辑检查：
+
+```sh
+swift run HabitCoreSmokeTests
+swift run HabitCoreStressTests
+```
+
+打开 Xcode 工程：
+
+```sh
+open HabitBloom.xcodeproj
+```
+
+在 Xcode 里选择 `HabitBloom` scheme，然后选择 iPhone 模拟器、真机或 `My Mac (Mac Catalyst)` 运行。
+
+也可以直接用命令行构建 iOS 模拟器版本：
+
+```sh
+xcodebuild \
+  -project HabitBloom.xcodeproj \
+  -scheme HabitBloom \
+  -configuration Debug \
+  -sdk iphonesimulator \
+  -destination 'generic/platform=iOS Simulator' \
+  CODE_SIGNING_ALLOWED=NO \
+  build
+```
+
+构建 Mac Catalyst 版本：
+
+```sh
+xcodebuild \
+  -project HabitBloom.xcodeproj \
+  -scheme HabitBloom \
+  -configuration Debug \
+  -destination 'platform=macOS,variant=Mac Catalyst,name=My Mac' \
+  build
+```
+
+如果修改了 `project.yml`，可以用 XcodeGen 重新生成工程：
+
+```sh
+brew install xcodegen
+xcodegen generate
+```
+
 ## 远程同步
 
 远程同步是可选能力，应用不配置服务器也可以作为纯本地打卡应用运行。
@@ -55,12 +110,13 @@ cloudflare/habitbloom-widget/
 
 配置方式见 [REMOTE_SYNC.md](REMOTE_SYNC.md)。
 
-## 构建方式
+## 开发环境
 
 环境要求：
 
 - Xcode，包含 iOS 和 Mac Catalyst 支持
 - Swift 工具链
+- 可选：XcodeGen，用于根据 `project.yml` 重新生成 Xcode 工程
 - 可选：Cloudflare Worker，用于远程小组件同步和轻量备份
 
 核心逻辑检查：
@@ -83,14 +139,29 @@ xcodebuild \
   build
 ```
 
-Mac Catalyst 构建：
+部署 Cloudflare Worker：
+
+```sh
+cd cloudflare/habitbloom-widget
+npm install
+cp .dev.vars.example .dev.vars
+npm run deploy
+```
+
+部署后把 Worker 地址和密钥填入本地 Xcode Build Settings 或命令行构建参数。不要把真实值提交到仓库。
+
+命令行带远程配置构建示例：
 
 ```sh
 xcodebuild \
   -project HabitBloom.xcodeproj \
   -scheme HabitBloom \
-  -configuration Debug \
-  -destination 'platform=macOS,variant=Mac Catalyst,name=My Mac' \
+  -configuration Release \
+  -sdk iphoneos \
+  -destination 'generic/platform=iOS' \
+  HABITBLOOM_REMOTE_BASE_URL="https://your-worker.your-account.workers.dev" \
+  HABITBLOOM_REMOTE_DEVICE_KEY="your-long-random-device-key" \
+  HABITBLOOM_REMOTE_WRITE_TOKEN="your-long-random-write-token" \
   build
 ```
 
