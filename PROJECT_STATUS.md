@@ -1,61 +1,83 @@
 # HabitBloom Project Status
 
+This document tracks the current implementation state for maintainers.
+
+## Current Version Scope
+
+HabitBloom is a SwiftUI habit tracker with local SwiftData storage, configurable habit cards, WidgetKit widgets, local reminders, and optional Cloudflare-based remote widget snapshots and text backup.
+
+The current product direction is:
+
+- keep the app fast and reliable for daily personal use
+- keep signing requirements minimal
+- keep remote sync lightweight and private
+- avoid storing large image data in the remote backend
+- keep the public repository free of secrets and generated packages
+
 ## Implemented
 
-- iOS SwiftUI app with SwiftData local storage.
-- Designed-for-iPhone-on-Mac support through the iOS target.
-- Habit creation and editing: name, icon, color, card style, target weekdays, reminders, and image cards.
-- Icon picker with curated emoji and SF Symbols categories, search, and custom input.
-- Sticker-style habit cards on the home screen.
-- Local notification scheduling per habit.
-- Statistics: current streak, total completed days, monthly completion rate, and month heatmap.
-- Widget extension: single habit, multi habit, and summary widgets.
-- Remote widget snapshots through Cloudflare Workers + Durable Objects for sideloaded builds; App Group snapshot sharing remains as a local fallback.
-- Cloudflare text backup for habits, lightweight card styling, and check-in records; custom images are intentionally excluded from long-term backup.
-- Check-in sound and card animation feedback.
-- Local image optimization before storing custom sticker images.
-- Derived habit stats are cached per refresh pass so the home screen and widget snapshot writer do not repeatedly scan the same check-in history.
-- Automatic cloud backup is debounced separately from widget snapshot refreshes; ordinary foreground/background refreshes no longer upload full history.
-- Mac Catalyst builds are enabled for quick desktop testing of the main app.
-- Core smoke and stress test executables.
-- Free-signing capability audit documented in `PERMISSIONS.md`.
+- iOS app built with SwiftUI and SwiftData
+- Mac Catalyst build for desktop use and local testing
+- Habit creation and editing: name, icon, color, card style, target weekdays, reminders, image cards, and ordering
+- Icon picker with curated emoji and SF Symbols categories, search, and custom input
+- Sticker-style habit cards on the home screen
+- Check-in sound and card animation feedback
+- Local notification scheduling per habit
+- Statistics: current streak, total completed days, monthly completion rate, and month heatmap
+- Widget extension: single habit, multi habit, and summary widgets
+- App Group widget snapshot sharing as a local fallback
+- Cloudflare Workers + Durable Objects snapshot sync for sideloaded widget reliability
+- Cloudflare text backup for habits, lightweight styling, schedules, and check-in records
+- Local image optimization before storing custom sticker images
+- Derived habit stats cached per refresh pass to avoid repeated full-history scans during rendering
+- Debounced cloud backup so ordinary foreground/background refreshes do not upload full history
+- Core smoke and stress test executables
+- Free-signing capability audit in `PERMISSIONS.md`
 
-## Not Implemented Yet
+## Not Implemented
 
-- iCloud/CloudKit sync. This is intentionally removed because the current signing/account setup cannot use iCloud capabilities.
-- True interactive widget check-in button. Current widgets are display/configuration focused.
-- Dynamic Island / Live Activities reminders. This should stay blocked unless the signing/account capability path is clear.
-- Full image crop UI. Current import does automatic center crop to the sticker ratio and compression.
-- GitHub Releases for IPA delivery. Source control comes first; IPA publishing can come later.
-- Full remote backup conflict resolution. Current cloud restore is an overwrite/update merge by stable IDs.
-- Full image decode cache for app cards. Images are compressed at import, but image-card rendering can still be profiled later if a large image library is used.
+- iCloud / CloudKit sync
+- Push-notification based server reminders
+- Time Sensitive Notifications
+- Live Activities / Dynamic Island reminders
+- Full manual image crop UI
+- True interactive widget check-in button
+- Full remote backup conflict-resolution UI
+- Full image decode cache for app card rendering
+- GitHub Releases workflow for packaged IPA delivery
 
-## v0.1.0 Usable Release Criteria
+## Signing Model
 
-- Source is maintained in Git on `main`.
-- Xcode project builds for iOS Simulator.
-- Core smoke and stress tests pass.
-- The app remains free-signing friendly: no CloudKit, Push Notifications, Time Sensitive Notifications, or Live Activities entitlements.
-- IPA packaging is manual; installable test IPAs can be produced when needed.
+Current entitlements are intentionally minimal.
 
-## Free Signing Status
-
-- Current entitlements are intentionally minimal.
-- App Groups remain enabled as a local fallback. Real-device sideload builds should use the Cloudflare snapshot path because App Group behavior can break after third-party resigning.
+- App Groups are enabled as a local fallback.
+- Real-device sideload builds should prefer the Cloudflare snapshot path for widgets.
 - CloudKit, Push Notifications, Time Sensitive Notifications, and Live Activities are not enabled.
-- See `PERMISSIONS.md` before adding any new Apple capability.
+- Local notifications are supported through runtime permission and do not require Push Notifications.
+
+Check `PERMISSIONS.md` before adding any new Apple capability.
+
+## Remote Data Boundary
+
+Cloud backup stores lightweight app state:
+
+- habit IDs, names, icons, colors, styles, schedules, reminders, sort order, and creation dates
+- check-in dates, completion state, and notes
+
+Cloud backup does not store custom images. Image cards remain local assets.
 
 ## Maintenance Rules
 
-- The repository can be public if real Worker URLs, device keys, write tokens, certificates, profiles, and IPA files are not committed.
-- Configure private remote sync values through local Xcode build settings or command-line build variables. See `REMOTE_SYNC.md`.
-- Do not commit build outputs, IPA files, signing certificates, provisioning profiles, or local Xcode state.
-- Before important changes, run:
+- Do not commit Worker URLs, device keys, write tokens, certificates, provisioning profiles, IPA files, archives, build folders, or local Xcode state.
+- Keep remote sync values in private Xcode build settings, ignored local config files, or command-line build settings.
+- Keep Bundle IDs stable unless there is a deliberate migration plan.
+- Prefer unsigned builds for CI-style checks when signing is not required.
+
+Recommended checks before larger changes:
 
 ```sh
 swift run HabitCoreSmokeTests
 swift run HabitCoreStressTests
-xcodebuild -project HabitBloom.xcodeproj -scheme HabitBloom -configuration Debug -destination 'platform=macOS,variant=Mac Catalyst,name=My Mac' -allowProvisioningUpdates build
+xcodebuild -project HabitBloom.xcodeproj -scheme HabitBloom -configuration Debug -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' CODE_SIGNING_ALLOWED=NO build
+xcodebuild -project HabitBloom.xcodeproj -scheme HabitBloom -configuration Debug -destination 'platform=macOS,variant=Mac Catalyst,name=My Mac' build
 ```
-
-- For UI or widget changes, also build the Xcode scheme and test on the current simulator/device.

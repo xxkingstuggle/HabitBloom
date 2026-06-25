@@ -15,6 +15,7 @@ DerivedData/
 *.certSigningRequest
 
 # Generated build/test artifacts
+build/
 work/
 outputs/
 *.ipa
