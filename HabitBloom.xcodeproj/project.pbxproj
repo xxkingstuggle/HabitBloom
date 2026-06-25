@@ -93,6 +93,8 @@
 		B38117FF4902E6BB989DB05D /* HabitIconGlyph.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HabitIconGlyph.swift; sourceTree = "<group>"; };
 		B385F2C0AE926A7D2D668E80 /* IconCatalog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IconCatalog.swift; sourceTree = "<group>"; };
 		BB3CA1B87759AD55EFF8CDE2 /* HabitBloomWidgets.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = HabitBloomWidgets.entitlements; sourceTree = "<group>"; };
+		ABCDEF1234567890ABCDEF01 /* RemoteConfig.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = RemoteConfig.xcconfig; sourceTree = "<group>"; };
+		ABCDEF1234567890ABCDEF02 /* RemoteConfig.local.xcconfig.example */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = RemoteConfig.local.xcconfig.example; sourceTree = "<group>"; };
 		C09268B4213DC4D1CE03921C /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		C51BCDB10EDE4722CA441218 /* HabitStatsService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HabitStatsService.swift; sourceTree = "<group>"; };
 		CB0162740D1F7021F3AA7256 /* PlatformColors.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlatformColors.swift; sourceTree = "<group>"; };
@@ -171,6 +173,15 @@
 			path = Sources/HabitCore;
 			sourceTree = "<group>";
 		};
+		ABCDEF1234567890ABCDEF03 /* Config */ = {
+			isa = PBXGroup;
+			children = (
+				ABCDEF1234567890ABCDEF01 /* RemoteConfig.xcconfig */,
+				ABCDEF1234567890ABCDEF02 /* RemoteConfig.local.xcconfig.example */,
+			);
+			path = Config;
+			sourceTree = "<group>";
+		};
 		C15AA10E053069D35812A6A2 /* Services */ = {
 			isa = PBXGroup;
 			children = (
@@ -188,6 +199,7 @@
 		D9C3D6F7BEBF60B3951CFF99 = {
 			isa = PBXGroup;
 			children = (
+				ABCDEF1234567890ABCDEF03 /* Config */,
 				5A1081CFBD5AA0EE849B614F /* HabitBloomApp */,
 				4A9351C7D1CFA4115F08B7E9 /* HabitBloomWidgets */,
 				7D716948AA71C4CC9663EA70 /* HabitCore */,
@@ -288,15 +300,12 @@
 				LastUpgradeCheck = 1700;
 				TargetAttributes = {
 					270A798C4EEE8821580692C9 = {
-						DevelopmentTeam = ZNSTKHPLY3;
 						ProvisioningStyle = Automatic;
 					};
 					36FD54E9E8D72113555EBCBF = {
-						DevelopmentTeam = ZNSTKHPLY3;
 						ProvisioningStyle = Automatic;
 					};
 					CD9DA825600EFF85DD1C1087 = {
-						DevelopmentTeam = ZNSTKHPLY3;
 						ProvisioningStyle = Automatic;
 					};
 				};
@@ -411,7 +420,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = com.zjx.HabitBloom;
+				PRODUCT_BUNDLE_IDENTIFIER = "$(HABITBLOOM_APP_BUNDLE_ID)";
 				SDKROOT = iphoneos;
 				SUPPORTS_MACCATALYST = YES;
 				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = YES;
@@ -431,7 +440,7 @@
 					"@executable_path/Frameworks",
 					"@executable_path/../../Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = com.zjx.HabitBloom.widgets;
+				PRODUCT_BUNDLE_IDENTIFIER = "$(HABITBLOOM_WIDGET_BUNDLE_ID)";
 				SDKROOT = iphoneos;
 				SKIP_INSTALL = YES;
 				TARGETED_DEVICE_FAMILY = "1,2";
@@ -452,7 +461,7 @@
 					"@executable_path/../../../../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.zjx.HabitBloom.widgets;
+				PRODUCT_BUNDLE_IDENTIFIER = "$(HABITBLOOM_WIDGET_BUNDLE_ID)";
 				SDKROOT = macosx;
 				SKIP_INSTALL = YES;
 			};
@@ -460,6 +469,7 @@
 		};
 		9C7F194A4EBF239A2189FCA5 /* Debug */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = ABCDEF1234567890ABCDEF01 /* RemoteConfig.xcconfig */;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				CLANG_ANALYZER_NONNULL = YES;
@@ -495,7 +505,6 @@
 				COPY_PHASE_STRIP = NO;
 				CURRENT_PROJECT_VERSION = 1;
 				DEBUG_INFORMATION_FORMAT = dwarf;
-				DEVELOPMENT_TEAM = ZNSTKHPLY3;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_TESTABILITY = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu11;
@@ -512,9 +521,6 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
-				HABITBLOOM_REMOTE_BASE_URL = "";
-				HABITBLOOM_REMOTE_DEVICE_KEY = "";
-				HABITBLOOM_REMOTE_WRITE_TOKEN = "";
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
 				MARKETING_VERSION = 1.0;
@@ -530,6 +536,7 @@
 		};
 		A7FEE5EE453ED6E85704DF0E /* Release */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = ABCDEF1234567890ABCDEF01 /* RemoteConfig.xcconfig */;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				CLANG_ANALYZER_NONNULL = YES;
@@ -565,7 +572,6 @@
 				COPY_PHASE_STRIP = NO;
 				CURRENT_PROJECT_VERSION = 1;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
-				DEVELOPMENT_TEAM = ZNSTKHPLY3;
 				ENABLE_NS_ASSERTIONS = NO;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu11;
@@ -576,9 +582,6 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
-				HABITBLOOM_REMOTE_BASE_URL = "";
-				HABITBLOOM_REMOTE_DEVICE_KEY = "";
-				HABITBLOOM_REMOTE_WRITE_TOKEN = "";
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
 				MARKETING_VERSION = 1.0;
@@ -603,7 +606,7 @@
 					"@executable_path/Frameworks",
 					"@executable_path/../../Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = com.zjx.HabitBloom.widgets;
+				PRODUCT_BUNDLE_IDENTIFIER = "$(HABITBLOOM_WIDGET_BUNDLE_ID)";
 				SDKROOT = iphoneos;
 				SKIP_INSTALL = YES;
 				TARGETED_DEVICE_FAMILY = "1,2";
@@ -623,7 +626,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = com.zjx.HabitBloom;
+				PRODUCT_BUNDLE_IDENTIFIER = "$(HABITBLOOM_APP_BUNDLE_ID)";
 				SDKROOT = iphoneos;
 				SUPPORTS_MACCATALYST = YES;
 				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = YES;
@@ -645,7 +648,7 @@
 					"@executable_path/../../../../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.zjx.HabitBloom.widgets;
+				PRODUCT_BUNDLE_IDENTIFIER = "$(HABITBLOOM_WIDGET_BUNDLE_ID)";
 				SDKROOT = macosx;
 				SKIP_INSTALL = YES;
 			};

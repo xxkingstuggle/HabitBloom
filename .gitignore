@@ -34,5 +34,4 @@ cloudflare/**/node_modules/
 .env
 *.env
 *.local.xcconfig
-Config/RemoteConfig.xcconfig
 SECRETS.md

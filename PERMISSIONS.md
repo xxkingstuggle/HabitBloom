@@ -6,7 +6,7 @@ This project is intended to work with local/free Apple signing for personal side
 
 | Capability | Used By | Current Status | Free Apple Developer Risk |
 | --- | --- | --- | --- |
-| App Groups | App + Widgets | Enabled: `group.com.zjx.HabitBloom` | Kept as a local/Xcode fallback. Real-device sideload builds use Cloudflare remote snapshots because third-party resigning can make App Group sharing unreliable. |
+| App Groups | App + Widgets | Enabled through `$(HABITBLOOM_APP_GROUP)` | Kept as a local/Xcode fallback. Real-device sideload builds use Cloudflare remote snapshots because third-party resigning can make App Group sharing unreliable. |
 | CloudKit / iCloud containers | Not used | Removed | Do not enable unless a paid Apple Developer Program account is available. |
 | Push Notifications | Not used | No `aps-environment` entitlement | Do not enable for the current self-signed build. |
 | Local Notifications | App | Runtime permission only | OK. Uses `UserNotifications`; this is not the Push Notifications entitlement. |
@@ -22,6 +22,7 @@ This project is intended to work with local/free Apple signing for personal side
 - `HabitBloomApp/Support/Info.plist`
 - `HabitBloomWidgets/Info.plist`
 - `project.yml`
+- `Config/RemoteConfig.xcconfig`
 
 ## Maintenance Rule
 

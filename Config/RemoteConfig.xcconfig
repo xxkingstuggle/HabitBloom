@@ -1,0 +1,15 @@
+// Public defaults for HabitBloom.
+// Keep this file safe to commit. Put real local values in RemoteConfig.local.xcconfig.
+
+DEVELOPMENT_TEAM =
+
+HABITBLOOM_APP_BUNDLE_ID = com.example.HabitBloom
+HABITBLOOM_WIDGET_BUNDLE_ID = com.example.HabitBloom.widgets
+HABITBLOOM_APP_GROUP = group.com.example.HabitBloom
+
+HABITBLOOM_REMOTE_BASE_URL =
+HABITBLOOM_REMOTE_DEVICE_KEY =
+HABITBLOOM_REMOTE_WRITE_TOKEN =
+
+// Optional local override. This file is ignored by Git.
+#include? "RemoteConfig.local.xcconfig"

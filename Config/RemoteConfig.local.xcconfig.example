@@ -1,0 +1,14 @@
+// Copy this file to Config/RemoteConfig.local.xcconfig and fill your own values.
+// RemoteConfig.local.xcconfig is ignored by Git.
+
+DEVELOPMENT_TEAM = YOUR_TEAM_ID
+
+HABITBLOOM_APP_BUNDLE_ID = com.yourname.HabitBloom
+HABITBLOOM_WIDGET_BUNDLE_ID = com.yourname.HabitBloom.widgets
+HABITBLOOM_APP_GROUP = group.com.yourname.HabitBloom
+
+// In .xcconfig files, write https URLs as https:/$()/example.com.
+// Xcode expands that to https://example.com without treating // as a comment.
+HABITBLOOM_REMOTE_BASE_URL = https:/$()/your-worker.your-account.workers.dev
+HABITBLOOM_REMOTE_DEVICE_KEY = your-long-random-device-key
+HABITBLOOM_REMOTE_WRITE_TOKEN = your-long-random-write-token

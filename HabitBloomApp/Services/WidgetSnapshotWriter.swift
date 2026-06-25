@@ -44,7 +44,7 @@ enum RemoteWidgetConfig {
 }
 
 enum WidgetSnapshotWriter {
-    static let suiteName = "group.com.zjx.HabitBloom"
+    static let suiteName = HabitAppGroupConfig.identifier
     static let snapshotsKey = "habitWidgetSnapshots"
     fileprivate static let imagesDirectoryName = "WidgetImages"
     fileprivate static let widgetKinds = ["SingleHabitWidget", "MultiHabitWidget", "SummaryHabitWidget"]

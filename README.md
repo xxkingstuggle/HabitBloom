@@ -63,6 +63,8 @@ open HabitBloom.xcodeproj
 
 在 Xcode 里选择 `HabitBloom` scheme，然后选择 iPhone 模拟器、真机或 `My Mac (Mac Catalyst)` 运行。
 
+更多安装方式，包括模拟器、免费 Apple ID 真机运行、unsigned IPA、自签工具、SideStore / LiveContainer 和 Mac Catalyst，见 [INSTALL.md](INSTALL.md)。
+
 也可以直接用命令行构建 iOS 模拟器版本：
 
 ```sh
@@ -168,6 +170,8 @@ xcodebuild \
 ## 私有配置
 
 仓库不包含真实 Worker 地址、device key、write token、签名证书、描述文件、IPA、归档包或本地构建缓存。
+
+公开工程默认使用 `com.example` Bundle ID 和空远程配置。本地私有值放在 `Config/RemoteConfig.local.xcconfig`，该文件被 Git 忽略。
 
 远程同步使用以下构建配置：
 

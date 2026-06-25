@@ -2,7 +2,7 @@ import Foundation
 import SwiftData
 
 enum HabitModelContainer {
-    private static let appGroupIdentifier = "group.com.zjx.HabitBloom"
+    private static let appGroupIdentifier = HabitAppGroupConfig.identifier
 
     static let shared: ModelContainer = {
         let schema = Schema([
@@ -27,4 +27,15 @@ enum HabitModelContainer {
             fatalError("Unable to create HabitBloom model container: \(error)")
         }
     }()
+}
+
+enum HabitAppGroupConfig {
+    static var identifier: String {
+        let value = Bundle.main.object(forInfoDictionaryKey: "HBAppGroupIdentifier") as? String ?? ""
+        let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        if trimmed.isEmpty || trimmed.contains("$(") {
+            return "group.com.example.HabitBloom"
+        }
+        return trimmed
+    }
 }

@@ -22,6 +22,8 @@
     <string>$(HABITBLOOM_REMOTE_BASE_URL)</string>
     <key>HBRemoteDeviceKey</key>
     <string>$(HABITBLOOM_REMOTE_DEVICE_KEY)</string>
+    <key>HBAppGroupIdentifier</key>
+    <string>$(HABITBLOOM_APP_GROUP)</string>
     <key>NSExtension</key>
     <dict>
         <key>NSExtensionPointIdentifier</key>

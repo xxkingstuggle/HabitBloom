@@ -3,15 +3,24 @@ import Foundation
 import SwiftUI
 import WidgetKit
 
-private let suiteName = "group.com.zjx.HabitBloom"
+private let suiteName = widgetInfoValue(for: "HBAppGroupIdentifier", fallback: "group.com.example.HabitBloom")
 private let snapshotsKey = "habitWidgetSnapshots"
 private let remoteSnapshotCacheKey = "remoteWidgetSnapshot"
 private let remoteRequestTimeout: TimeInterval = 8
 private let optionsRemoteRequestTimeout: TimeInterval = 1.5
 
+private func widgetInfoValue(for key: String, fallback: String = "") -> String {
+    guard let value = Bundle.main.object(forInfoDictionaryKey: key) as? String else { return fallback }
+    let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+    if trimmed.isEmpty || trimmed.contains("$(") {
+        return fallback
+    }
+    return trimmed
+}
+
 private enum RemoteWidgetConfig {
-    static let baseURLString = infoValue(for: "HBRemoteBaseURL")
-    static let deviceKey = infoValue(for: "HBRemoteDeviceKey")
+    static let baseURLString = widgetInfoValue(for: "HBRemoteBaseURL")
+    static let deviceKey = widgetInfoValue(for: "HBRemoteDeviceKey")
 
     static var isConfigured: Bool {
         baseURLString.hasPrefix("https://")
@@ -20,10 +29,6 @@ private enum RemoteWidgetConfig {
             && !deviceKey.contains("$(")
     }
 
-    private static func infoValue(for key: String) -> String {
-        guard let value = Bundle.main.object(forInfoDictionaryKey: key) as? String else { return "" }
-        return value.trimmingCharacters(in: .whitespacesAndNewlines)
-    }
 }
 
 struct WidgetRemoteSnapshot: Codable {

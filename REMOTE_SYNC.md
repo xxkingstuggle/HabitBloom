@@ -14,13 +14,23 @@ The widget only reads `HABITBLOOM_REMOTE_BASE_URL` and `HABITBLOOM_REMOTE_DEVICE
 
 ## Xcode Build
 
-Set these as user-defined build settings on both targets:
+Public defaults live in `Config/RemoteConfig.xcconfig`.
+
+For local builds, copy the ignored override template:
+
+```sh
+cp Config/RemoteConfig.local.xcconfig.example Config/RemoteConfig.local.xcconfig
+```
+
+Then fill these values:
 
 ```text
-HABITBLOOM_REMOTE_BASE_URL = https://your-worker.your-account.workers.dev
+HABITBLOOM_REMOTE_BASE_URL = https:/$()/your-worker.your-account.workers.dev
 HABITBLOOM_REMOTE_DEVICE_KEY = your-long-random-device-key
 HABITBLOOM_REMOTE_WRITE_TOKEN = your-long-random-write-token
 ```
+
+Use `https:/$()/...` inside `.xcconfig` files so Xcode expands it to `https://...` without treating `//` as a comment.
 
 The widget target does not need the write token, but leaving the setting available at project level is fine.
 
