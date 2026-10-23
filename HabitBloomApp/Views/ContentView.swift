@@ -10,6 +10,8 @@ struct ContentView: View {
     @State private var selectedTab = MainTab.home
     @State private var statsByHabitID: [UUID: HabitStatsViewModel] = [:]
     @State private var completedTodayByHabitID: [UUID: Bool] = [:]
+    @State private var noteDraft: NoteDraft?
+    @State private var today = Calendar.current.startOfDay(for: Date())
 
     var body: some View {
         TabView(selection: $selectedTab) {
@@ -33,7 +35,14 @@ struct ContentView: View {
             .tag(MainTab.home)
 
             NavigationStack {
-                StatsView(habits: habits, statsByHabitID: statsByHabitID)
+                StatsView(
+                    habits: habits,
+                    statsByHabitID: statsByHabitID,
+                    onToggleDay: toggleCheckIn,
+                    onEditNote: { habit, day in
+                        noteDraft = NoteDraft(habit: habit, day: day, note: note(for: habit, on: day))
+                    }
+                )
             }
             .tabItem {
                 Label("统计", systemImage: "chart.bar.xaxis")
@@ -59,7 +68,18 @@ struct ContentView: View {
         }) { habit in
             HabitEditorView(habit: habit)
         }
+        .sheet(item: $noteDraft, onDismiss: {
+            refreshDerivedStateAndWidgets(delayMilliseconds: 0, backupDelayMilliseconds: 2_500)
+        }) { draft in
+            DayNoteEditorView(day: draft.day, habitName: draft.habit.name, initialNote: draft.note) { newNote in
+                saveNote(newNote, for: draft.habit, on: draft.day)
+            }
+        }
         .task {
+            refreshDerivedStateAndWidgets()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .NSCalendarDayChanged)) { _ in
+            today = Calendar.current.startOfDay(for: Date())
             refreshDerivedStateAndWidgets()
         }
         .onChange(of: scenePhase) { _, phase in
@@ -78,33 +98,35 @@ struct ContentView: View {
                 showingEditor = true
             }
         } else {
+            let dueToday = habitsDueToday
+            let restingToday = habitsRestingToday
+
             ScrollView {
                 LazyVStack(spacing: 14) {
                     TodaySummaryHeader(
-                        totalCount: habits.count,
-                        completedToday: habits.filter { completedTodayByHabitID[$0.id] == true }.count,
+                        totalCount: dueToday.count,
+                        completedToday: dueToday.filter { completedTodayByHabitID[$0.id] == true }.count,
                         bestStreak: habits.compactMap { statsByHabitID[$0.id]?.currentStreak }.max() ?? 0
                     )
 
-                    ForEach(Array(habits.enumerated()), id: \.element.id) { index, habit in
-                        HabitCardView(
-                            habit: habit,
-                            stats: statsByHabitID[habit.id] ?? .empty,
-                            isCompletedToday: completedTodayByHabitID[habit.id] ?? false,
-                            feedbackLevel: index
-                        ) {
-                            toggleToday(for: habit)
+                    ForEach(Array(dueToday.enumerated()), id: \.element.id) { index, habit in
+                        habitCard(habit, feedbackLevel: index)
+                    }
+
+                    if !restingToday.isEmpty {
+                        HStack(spacing: 8) {
+                            Text("今日休息")
+                                .font(.subheadline.weight(.semibold))
+                                .foregroundStyle(.secondary)
+                            Text("今天不是这些目标的打卡日")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                            Spacer(minLength: 0)
                         }
-                        .onTapGesture {
-                            selectedHabit = habit
-                        }
-                        .contextMenu {
-                            Button("编辑") { selectedHabit = habit }
-                            Button("上移") { move(habit, by: -1) }
-                                .disabled(index == 0)
-                            Button("下移") { move(habit, by: 1) }
-                                .disabled(index == habits.count - 1)
-                            Button("删除", role: .destructive) { delete(habit) }
+                        .padding(.top, 4)
+
+                        ForEach(Array(restingToday.enumerated()), id: \.element.id) { index, habit in
+                            habitCard(habit, feedbackLevel: index, isResting: true)
                         }
                     }
                 }
@@ -116,28 +138,100 @@ struct ContentView: View {
         }
     }
 
+    private func habitCard(_ habit: HabitEntity, feedbackLevel: Int, isResting: Bool = false) -> some View {
+        HabitCardView(
+            habit: habit,
+            stats: statsByHabitID[habit.id] ?? .empty,
+            isCompletedToday: completedTodayByHabitID[habit.id] ?? false,
+            feedbackLevel: feedbackLevel
+        ) {
+            toggleToday(for: habit)
+        }
+        .opacity(isResting ? 0.62 : 1)
+        .saturation(isResting ? 0.72 : 1)
+        .onTapGesture {
+            selectedHabit = habit
+        }
+        .contextMenu {
+            Button("编辑") { selectedHabit = habit }
+            Button("今日备注") {
+                noteDraft = NoteDraft(habit: habit, day: today, note: note(for: habit, on: today))
+            }
+            Button("上移") { move(habit, by: -1) }
+                .disabled(habit.sortOrder <= habits.map(\.sortOrder).min() ?? 0)
+            Button("下移") { move(habit, by: 1) }
+                .disabled(habit.sortOrder >= habits.map(\.sortOrder).max() ?? 0)
+            Button("删除", role: .destructive) { delete(habit) }
+        }
+    }
+
+    private var habitsDueToday: [HabitEntity] {
+        let weekday = Calendar.current.component(.weekday, from: today)
+        return habits.filter { WeekdayMask.contains(weekday, in: $0.targetWeekdayMask) }
+    }
+
+    private var habitsRestingToday: [HabitEntity] {
+        let weekday = Calendar.current.component(.weekday, from: today)
+        return habits.filter { !WeekdayMask.contains(weekday, in: $0.targetWeekdayMask) }
+    }
+
     private func toggleToday(for habit: HabitEntity) {
-        let today = Calendar.current.startOfDay(for: Date())
+        toggleCheckIn(for: habit, on: today)
+    }
+
+    private func toggleCheckIn(for habit: HabitEntity, on day: Date) {
+        let normalizedDay = Calendar.current.startOfDay(for: day)
         let willComplete: Bool
-        if let existing = (habit.checkIns ?? []).first(where: { $0.day == today }) {
+        if let existing = (habit.checkIns ?? []).first(where: { $0.day == normalizedDay }) {
             existing.isCompleted.toggle()
             willComplete = existing.isCompleted
         } else {
             var checkIns = habit.checkIns ?? []
-            checkIns.append(CheckInEntity(day: today, habit: habit))
+            checkIns.append(CheckInEntity(day: normalizedDay, habit: habit))
             habit.checkIns = checkIns
             willComplete = true
         }
 
-        guard saveModelContext(action: "toggle today") else { return }
+        guard saveModelContext(action: "toggle check-in") else { return }
         let derived = refreshDerivedState(habits: habits)
-        WidgetSnapshotWriter.scheduleCheckIn(
-            habitID: habit.id,
-            isCompletedToday: willComplete,
-            habits: habits,
-            statsByHabitID: derived.stats,
-            completedTodayByHabitID: derived.completedToday
-        )
+
+        if normalizedDay == today {
+            WidgetSnapshotWriter.scheduleCheckIn(
+                habitID: habit.id,
+                isCompletedToday: willComplete,
+                habits: habits,
+                statsByHabitID: derived.stats,
+                completedTodayByHabitID: derived.completedToday
+            )
+            if willComplete {
+                Task { await ReminderScheduler.suppressTodayIfNeeded(for: ReminderScheduleSnapshot(habit: habit)) }
+            } else {
+                Task { await ReminderScheduler.reschedule(for: ReminderScheduleSnapshot(habit: habit)) }
+            }
+        } else {
+            refreshDerivedStateAndWidgets(delayMilliseconds: 0, backupDelayMilliseconds: 2_500)
+        }
+    }
+
+    private func note(for habit: HabitEntity, on day: Date) -> String {
+        let normalizedDay = Calendar.current.startOfDay(for: day)
+        return (habit.checkIns ?? []).first(where: { $0.day == normalizedDay })?.note ?? ""
+    }
+
+    private func saveNote(_ note: String, for habit: HabitEntity, on day: Date) {
+        let normalizedDay = Calendar.current.startOfDay(for: day)
+        let trimmed = note.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        if let existing = (habit.checkIns ?? []).first(where: { $0.day == normalizedDay }) {
+            existing.note = trimmed
+        } else {
+            var checkIns = habit.checkIns ?? []
+            checkIns.append(CheckInEntity(day: normalizedDay, isCompleted: false, note: trimmed, habit: habit))
+            habit.checkIns = checkIns
+        }
+
+        guard saveModelContext(action: "save day note") else { return }
+        refreshDerivedState(habits: habits)
     }
 
     private func move(_ habit: HabitEntity, by offset: Int) {
@@ -202,6 +296,14 @@ private enum MainTab: Hashable {
     case home
     case stats
     case settings
+}
+
+private struct NoteDraft: Identifiable {
+    let habit: HabitEntity
+    let day: Date
+    let note: String
+
+    var id: String { "\(habit.id.uuidString)-\(day.timeIntervalSince1970)" }
 }
 
 private struct EmptyHabitView: View {

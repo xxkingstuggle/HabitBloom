@@ -26,6 +26,17 @@ The smoke test catches basic logic regressions. The stress test simulates hundre
 - Set reminders and confirm notification scheduling still works.
 - Use Settings to upload a cloud backup and restore from the server.
 
+## Regression Checks for the 2026-10 Revival
+
+- Streak: create a daily habit with check-ins up to yesterday; confirm the streak still shows before today's check-in, then +1 after.
+- Stats calendar: tap a past day to backfill a check-in; tap again to cancel; long-press to add a note and confirm the dot marker.
+- Stats icons: give a habit an emoji icon and confirm the Stats page renders it (not a blank SF Symbol).
+- Today grouping: create a weekend-only habit and confirm it appears under "今日休息" on weekdays and is excluded from the "完成 X/Y" counter.
+- Reminder suppression: set a reminder a few minutes ahead, check in, and confirm no notification fires for that habit today.
+- Widget check-in: tap the circle on the single-habit widget and confirm the app shows the same state after launch (App Group path on Mac / Xcode install; remote path when sideloaded).
+- Local backup: export JSON, delete a habit, import the JSON, and confirm the habit and its check-ins return.
+- Remote image dedup: add two image cards, check in on a text habit, and confirm the `/v1/checkin` body no longer embeds image data (only file names).
+
 ## Long-Term Stability Checks
 
 - Test with 50+ habits and several years of check-ins.

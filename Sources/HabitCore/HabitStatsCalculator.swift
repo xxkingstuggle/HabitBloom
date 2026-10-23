@@ -66,6 +66,14 @@ public struct HabitStatsCalculator: Sendable {
 
     private func streak(endingAt today: Date, habit: Habit, completedDays: Set<Date>) -> Int {
         var day = today
+
+        // 今天尚未打卡时，不要把已积累的连续天数清零：从昨天开始回溯。
+        if habit.targetWeekdays.contains(calendar.component(.weekday, from: day)),
+           !completedDays.contains(day),
+           let previous = calendar.date(byAdding: .day, value: -1, to: day) {
+            day = previous
+        }
+
         var count = 0
 
         while true {

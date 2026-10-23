@@ -30,7 +30,11 @@ type WidgetSnapshot = {
 type CheckInRequest = {
   habitID: string;
   isCompletedToday: boolean;
-  snapshot?: WidgetSnapshot;
+  snapshot?: WidgetSnapshot | null;
+};
+
+type ImageManifest = {
+  files: string[];
 };
 
 type BackupCheckIn = {
@@ -66,6 +70,8 @@ type BackupArchive = {
 
 const snapshotKey = "snapshot";
 const backupKey = "backup";
+const imageManifestKey = "image-manifest";
+const imagePrefix = "image/";
 
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
@@ -89,6 +95,9 @@ export default {
     const forwarded = new Request(request);
     forwarded.headers.set("x-habitbloom-action", route.action);
     forwarded.headers.set("x-habitbloom-device-key", route.deviceKey);
+    if (route.imageFile) {
+      forwarded.headers.set("x-habitbloom-image-file", route.imageFile);
+    }
     return object.fetch(forwarded);
   }
 };
@@ -126,7 +135,66 @@ export class HabitSnapshotObject extends DurableObject {
       return json(backup);
     }
 
+    if (action === "putImage") {
+      const fileName = request.headers.get("x-habitbloom-image-file") ?? "";
+      if (!isSafeImageFileName(fileName)) {
+        return json({ error: "invalid_image_name" }, 400);
+      }
+      const bytes = await request.arrayBuffer();
+      if (bytes.byteLength === 0 || bytes.byteLength > 2_000_000) {
+        return json({ error: "invalid_image_size" }, 400);
+      }
+      await this.ctx.storage.put(imagePrefix + fileName, bytes);
+      const manifest = await this.loadImageManifest();
+      if (!manifest.files.includes(fileName)) {
+        manifest.files.push(fileName);
+        await this.ctx.storage.put(imageManifestKey, manifest);
+      }
+      return json({ file: fileName, bytes: bytes.byteLength });
+    }
+
+    if (action === "getImage") {
+      const fileName = request.headers.get("x-habitbloom-image-file") ?? "";
+      if (!isSafeImageFileName(fileName)) {
+        return json({ error: "invalid_image_name" }, 400);
+      }
+      const bytes = await this.ctx.storage.get<ArrayBuffer>(imagePrefix + fileName);
+      if (!bytes) {
+        return json({ error: "not_found" }, 404);
+      }
+      return new Response(bytes, {
+        status: 200,
+        headers: {
+          "content-type": "image/jpeg",
+          "cache-control": "public, max-age=31536000, immutable",
+          ...corsHeaders()
+        }
+      });
+    }
+
+    if (action === "getImages") {
+      return json(await this.loadImageManifest());
+    }
+
+    if (action === "putImages") {
+      const value = await request.json();
+      const files = Array.isArray(value)
+        ? value.filter((entry): entry is string => typeof entry === "string" && isSafeImageFileName(entry))
+        : [];
+      const manifest: ImageManifest = { files: [...new Set(files)].sort() };
+      await this.ctx.storage.put(imageManifestKey, manifest);
+      return json(manifest);
+    }
+
     return json({ error: "not_found" }, 404);
+  }
+
+  private async loadImageManifest(): Promise<ImageManifest> {
+    const existing = await this.ctx.storage.get<ImageManifest>(imageManifestKey);
+    if (existing && Array.isArray(existing.files)) {
+      return { files: existing.files.filter((file) => typeof file === "string") };
+    }
+    return { files: [] };
   }
 
   private async loadSnapshot(deviceKey: string): Promise<WidgetSnapshot> {
@@ -185,13 +253,14 @@ export class HabitSnapshotObject extends DurableObject {
 
 function parseRoute(method: string, pathname: string):
   | {
-      action: "getSnapshot" | "putSnapshot" | "checkIn" | "getBackup" | "putBackup";
+      action: "getSnapshot" | "putSnapshot" | "checkIn" | "getBackup" | "putBackup" | "putImage" | "getImage" | "getImages" | "putImages";
       deviceKey: string;
+      imageFile?: string;
       requiresAuth: boolean;
     }
   | null {
   const parts = pathname.split("/").filter(Boolean);
-  if (parts.length !== 3 || parts[0] !== "v1") {
+  if (parts.length < 3 || parts[0] !== "v1") {
     return null;
   }
 
@@ -200,7 +269,7 @@ function parseRoute(method: string, pathname: string):
     return null;
   }
 
-  if (parts[1] === "snapshot") {
+  if (parts.length === 3 && parts[1] === "snapshot") {
     if (method === "GET") {
       return { action: "getSnapshot", deviceKey, requiresAuth: false };
     }
@@ -210,11 +279,11 @@ function parseRoute(method: string, pathname: string):
     return null;
   }
 
-  if (parts[1] === "checkin" && method === "POST") {
+  if (parts.length === 3 && parts[1] === "checkin" && method === "POST") {
     return { action: "checkIn", deviceKey, requiresAuth: true };
   }
 
-  if (parts[1] === "backup") {
+  if (parts.length === 3 && parts[1] === "backup") {
     if (method === "GET") {
       return { action: "getBackup", deviceKey, requiresAuth: true };
     }
@@ -224,7 +293,35 @@ function parseRoute(method: string, pathname: string):
     return null;
   }
 
+  if (parts.length === 3 && parts[1] === "images") {
+    if (method === "GET") {
+      return { action: "getImages", deviceKey, requiresAuth: true };
+    }
+    if (method === "PUT") {
+      return { action: "putImages", deviceKey, requiresAuth: true };
+    }
+    return null;
+  }
+
+  if (parts.length === 4 && parts[1] === "image") {
+    const imageFile = decodeURIComponent(parts[3]);
+    if (!imageFile) {
+      return null;
+    }
+    if (method === "PUT") {
+      return { action: "putImage", deviceKey, imageFile, requiresAuth: true };
+    }
+    if (method === "GET") {
+      return { action: "getImage", deviceKey, imageFile, requiresAuth: false };
+    }
+    return null;
+  }
+
   return null;
+}
+
+function isSafeImageFileName(fileName: string): boolean {
+  return /^[A-Za-z0-9-]{1,80}\.jpg$/.test(fileName);
 }
 
 function isAuthorized(request: Request, env: Env): boolean {

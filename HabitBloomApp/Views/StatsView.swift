@@ -3,15 +3,28 @@ import SwiftUI
 struct StatsView: View {
     let habits: [HabitEntity]
     let statsByHabitID: [UUID: HabitStatsViewModel]
+    let onToggleDay: (HabitEntity, Date) -> Void
+    let onEditNote: (HabitEntity, Date) -> Void
+
+    @State private var monthOffsetByHabitID: [UUID: Int] = [:]
+
+    private let calendar = Calendar.current
 
     var body: some View {
         ScrollView {
             LazyVStack(spacing: 16) {
                 ForEach(habits) { habit in
                     let stats = statsByHabitID[habit.id] ?? .empty
+                    let monthOffset = monthOffsetByHabitID[habit.id] ?? 0
+                    let monthDate = calendar.date(byAdding: .month, value: monthOffset, to: Date()) ?? Date()
+
                     VStack(alignment: .leading, spacing: 14) {
-                        HStack {
-                            Label(habit.name, systemImage: habit.icon)
+                        HStack(spacing: 10) {
+                            HabitIconGlyph(icon: habit.icon, size: habit.icon.isEmojiIcon ? 22 : 18)
+                                .foregroundStyle((HabitPalette(rawValue: habit.colorName) ?? .coral).accent)
+                                .frame(width: 34, height: 34)
+                                .background(Color.secondary.opacity(0.10), in: Circle())
+                            Text(habit.name)
                                 .font(.headline)
                             Spacer()
                             Text("\(Int(stats.monthCompletionRate * 100))%")
@@ -23,7 +36,48 @@ struct StatsView: View {
                             StatPill(title: "累计", value: "\(stats.totalCompletedDays) 天")
                         }
 
-                        MonthHeatmap(days: stats.monthDays, colorName: habit.colorName)
+                        HStack {
+                            Button {
+                                monthOffsetByHabitID[habit.id] = monthOffset - 1
+                            } label: {
+                                Image(systemName: "chevron.left")
+                                    .font(.subheadline.weight(.bold))
+                                    .frame(width: 30, height: 30)
+                            }
+                            .buttonStyle(.plain)
+
+                            Spacer()
+
+                            Text(monthDate.formatted(.dateTime.year().month()))
+                                .font(.subheadline.weight(.semibold))
+
+                            Spacer()
+
+                            Button {
+                                monthOffsetByHabitID[habit.id] = monthOffset + 1
+                            } label: {
+                                Image(systemName: "chevron.right")
+                                    .font(.subheadline.weight(.bold))
+                                    .frame(width: 30, height: 30)
+                            }
+                            .buttonStyle(.plain)
+                            .disabled(monthOffset >= 0)
+                            .opacity(monthOffset >= 0 ? 0.35 : 1)
+                        }
+
+                        MonthCalendarView(
+                            displayedMonth: monthDate,
+                            completedDays: completedDaySet(for: habit),
+                            notedDays: notedDaySet(for: habit),
+                            today: calendar.startOfDay(for: Date()),
+                            accent: (HabitPalette(rawValue: habit.colorName) ?? .coral).accent,
+                            onToggleDay: { day in onToggleDay(habit, day) },
+                            onEditNote: { day in onEditNote(habit, day) }
+                        )
+
+                        Text("点按任意日期可补卡或取消打卡，长按可写当日备注。")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
                     }
                     .padding(16)
                     .background(.regularMaterial)
@@ -34,6 +88,14 @@ struct StatsView: View {
         }
         .background(AppBackground())
         .navigationTitle("统计")
+    }
+
+    private func completedDaySet(for habit: HabitEntity) -> Set<Date> {
+        Set((habit.checkIns ?? []).filter(\.isCompleted).map { calendar.startOfDay(for: $0.day) })
+    }
+
+    private func notedDaySet(for habit: HabitEntity) -> Set<Date> {
+        Set((habit.checkIns ?? []).filter { !$0.note.isEmpty }.map { calendar.startOfDay(for: $0.day) })
     }
 }
 
@@ -53,27 +115,5 @@ private struct StatPill: View {
         .padding(12)
         .background(Color.primary.opacity(0.06))
         .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
-    }
-}
-
-private struct MonthHeatmap: View {
-    let days: [(date: Date, isCompleted: Bool)]
-    let colorName: String
-
-    private var accent: Color {
-        (HabitPalette(rawValue: colorName) ?? .coral).accent
-    }
-
-    private let columns = Array(repeating: GridItem(.flexible(), spacing: 6), count: 7)
-
-    var body: some View {
-        LazyVGrid(columns: columns, spacing: 6) {
-            ForEach(days, id: \.date) { day in
-                RoundedRectangle(cornerRadius: 4, style: .continuous)
-                    .fill(day.isCompleted ? accent : Color.primary.opacity(0.09))
-                    .frame(height: 18)
-                    .accessibilityLabel(day.isCompleted ? "已完成" : "未完成")
-            }
-        }
     }
 }

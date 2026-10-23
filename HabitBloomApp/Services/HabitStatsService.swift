@@ -20,6 +20,8 @@ struct HabitDerivedState {
 }
 
 enum HabitStatsService {
+    /// 与 HabitCore 共享同一套连续天数口径（今天未打卡时从昨天回溯），
+    /// 这里直接对接 SwiftData 实体，避免双轨实现漂移。
     static func stats(for habit: HabitEntity, today: Date = Date(), calendar: Calendar = .current) -> HabitStatsViewModel {
         let normalizedToday = calendar.startOfDay(for: today)
         return stats(
@@ -103,6 +105,14 @@ enum HabitStatsService {
 
     private static func currentStreak(endingAt today: Date, completedDays: Set<Date>, targetWeekdays: Set<Int>, calendar: Calendar) -> Int {
         var cursor = today
+
+        // 今天尚未打卡时，不要把已积累的连续天数清零：从昨天开始回溯。
+        if targetWeekdays.contains(calendar.component(.weekday, from: cursor)),
+           !completedDays.contains(cursor),
+           let previous = calendar.date(byAdding: .day, value: -1, to: cursor) {
+            cursor = previous
+        }
+
         var count = 0
 
         while true {

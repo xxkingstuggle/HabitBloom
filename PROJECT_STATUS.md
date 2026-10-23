@@ -20,18 +20,23 @@ The current product direction is:
 - Mac Catalyst build for desktop use and local testing
 - Habit creation and editing: name, icon, color, card style, target weekdays, reminders, image cards, and ordering
 - Icon picker with curated emoji and SF Symbols categories, search, and custom input
-- Sticker-style habit cards on the home screen
+- Sticker-style habit cards on the home screen, grouped into "due today" and "resting today"
 - Check-in sound and card animation feedback
-- Local notification scheduling per habit
-- Statistics: current streak, total completed days, monthly completion rate, and month heatmap
-- Widget extension: single habit, multi habit, and summary widgets
+- Local notification scheduling per habit, with completed-today suppression so finished habits do not nag
+- Statistics: current streak, total completed days, monthly completion rate, and an interactive month calendar (tap to backfill/cancel a day, long-press for daily notes)
+- Streak counting keeps the accumulated run visible while today is still unchecked
+- Widget extension: single habit, multi habit, and summary widgets with interactive check-in buttons (iOS 17+ / macOS 14+)
+- Widget check-ins merge back into SwiftData on next app launch via the App Group queue, and via the remote snapshot when sideloading breaks the App Group
 - App Group widget snapshot sharing as a local fallback
 - Cloudflare Workers + Durable Objects snapshot sync for sideloaded widget reliability
 - Cloudflare text backup for habits, lightweight styling, schedules, and check-in records
+- Remote image dedup: widget image cards upload only when their fingerprint changes; snapshots reference images by file name
+- Local JSON export/import backup in Settings, same schema as the cloud archive
 - Local image optimization before storing custom sticker images
 - Derived habit stats cached per refresh pass to avoid repeated full-history scans during rendering
 - Debounced cloud backup so ordinary foreground/background refreshes do not upload full history
-- Core smoke and stress test executables
+- Cross-midnight refresh: the app listens for day-change notifications and widget timelines carry a next-midnight entry
+- Core smoke and stress test executables (streak regression locked in)
 - Free-signing capability audit in `PERMISSIONS.md`
 
 ## Not Implemented
@@ -41,7 +46,6 @@ The current product direction is:
 - Time Sensitive Notifications
 - Live Activities / Dynamic Island reminders
 - Full manual image crop UI
-- True interactive widget check-in button
 - Full remote backup conflict-resolution UI
 - Full image decode cache for app card rendering
 - GitHub Releases workflow for packaged IPA delivery

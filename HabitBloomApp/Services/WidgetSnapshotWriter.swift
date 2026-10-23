@@ -1,51 +1,7 @@
 import Foundation
 import WidgetKit
 
-struct WidgetHabitSnapshot: Identifiable, Codable, Sendable {
-    var id: UUID
-    var name: String
-    var icon: String
-    var colorName: String
-    var cardStyle: String
-    var streakDays: Int
-    var totalDays: Int
-    var completionRate: Double
-    var isCompletedToday: Bool
-    var imageFileName: String?
-    var imageData: Data?
-    var updatedAt: Date
-}
-
-struct WidgetRemoteSnapshot: Codable, Sendable {
-    var deviceKey: String
-    var updatedAt: Date
-    var selectedHabitID: UUID?
-    var habits: [WidgetHabitSnapshot]
-}
-
-enum RemoteWidgetConfig {
-    static let baseURLString = infoValue(for: "HBRemoteBaseURL")
-    static let deviceKey = infoValue(for: "HBRemoteDeviceKey")
-    static let writeToken = infoValue(for: "HBRemoteWriteToken")
-
-    static var isConfigured: Bool {
-        baseURLString.hasPrefix("https://")
-            && !baseURLString.contains("$(")
-            && !deviceKey.isEmpty
-            && !deviceKey.contains("$(")
-            && !writeToken.isEmpty
-            && !writeToken.contains("$(")
-    }
-
-    private static func infoValue(for key: String) -> String {
-        guard let value = Bundle.main.object(forInfoDictionaryKey: key) as? String else { return "" }
-        return value.trimmingCharacters(in: .whitespacesAndNewlines)
-    }
-}
-
 enum WidgetSnapshotWriter {
-    static let suiteName = HabitAppGroupConfig.identifier
-    static let snapshotsKey = "habitWidgetSnapshots"
     fileprivate static let imagesDirectoryName = "WidgetImages"
     fileprivate static let widgetKinds = ["SingleHabitWidget", "MultiHabitWidget", "SummaryHabitWidget"]
     private static let coordinator = WidgetSnapshotWriteCoordinator()
@@ -153,6 +109,7 @@ private struct WidgetHabitSnapshotInput: Sendable {
 }
 
 private enum WidgetSnapshotFactory {
+    /// 远程快照：图片卡片只带指纹文件名（服务端去重），不再每次全量上传图片字节。
     static func makeRemoteSnapshot(inputs: [WidgetHabitSnapshotInput], selectedHabitID: UUID?) -> WidgetRemoteSnapshot {
         WidgetRemoteSnapshot(
             deviceKey: RemoteWidgetConfig.deviceKey,
@@ -169,12 +126,18 @@ private enum WidgetSnapshotFactory {
                     totalDays: input.totalDays,
                     completionRate: input.completionRate,
                     isCompletedToday: input.isCompletedToday,
-                    imageFileName: nil,
-                    imageData: input.imageData,
+                    imageFileName: remoteImageFileName(for: input),
+                    imageData: nil,
                     updatedAt: input.updatedAt
                 )
             }
         )
+    }
+
+    /// 远程图片上传：只上传指纹发生变化的图片，返回本次已确认在远端的图片文件集合。
+    static func remoteImageFileName(for input: WidgetHabitSnapshotInput) -> String? {
+        guard let imageData = input.imageData else { return nil }
+        return "\(input.id.uuidString)-\(widgetImageFingerprint(imageData)).jpg"
     }
 
     static func makeLocalSnapshot(input: WidgetHabitSnapshotInput, imageFileName: String?) -> WidgetHabitSnapshot {
@@ -221,11 +184,14 @@ private actor WidgetSnapshotWriteCoordinator {
         await reloadWidgets()
     }
 
+    /// 先把变化的图片上传到 Worker，再把引用文件名的快照写过去。
     private static func putRemoteSnapshot(inputs: [WidgetHabitSnapshotInput], selectedHabitID: UUID?) async {
-        guard RemoteWidgetConfig.isConfigured else {
+        guard RemoteWidgetConfig.isWritable else {
             log("remote PUT skipped: RemoteWidgetConfig is not configured")
             return
         }
+
+        await uploadChangedImages(inputs: inputs)
 
         let snapshot = WidgetSnapshotFactory.makeRemoteSnapshot(inputs: inputs, selectedHabitID: selectedHabitID)
         let startedAt = Date()
@@ -233,7 +199,7 @@ private actor WidgetSnapshotWriteCoordinator {
 
         do {
             var request = try request(path: "/v1/snapshot/\(RemoteWidgetConfig.deviceKey)", method: "PUT")
-            request.httpBody = try jsonEncoder.encode(snapshot)
+            request.httpBody = try widgetJSONEncoder.encode(snapshot)
             let (_, response) = try await URLSession.shared.data(for: request)
             try validate(response: response)
             log("PUT /snapshot ok elapsed=\(Date().timeIntervalSince(startedAt))s")
@@ -243,10 +209,12 @@ private actor WidgetSnapshotWriteCoordinator {
     }
 
     private static func postRemoteCheckIn(habitID: UUID, isCompletedToday: Bool, inputs: [WidgetHabitSnapshotInput]) async {
-        guard RemoteWidgetConfig.isConfigured else {
+        guard RemoteWidgetConfig.isWritable else {
             log("remote POST skipped: RemoteWidgetConfig is not configured")
             return
         }
+
+        await uploadChangedImages(inputs: inputs)
 
         let startedAt = Date()
         log("POST /checkin start habitID=\(habitID.uuidString) completed=\(isCompletedToday)")
@@ -258,12 +226,68 @@ private actor WidgetSnapshotWriteCoordinator {
                 isCompletedToday: isCompletedToday,
                 snapshot: WidgetSnapshotFactory.makeRemoteSnapshot(inputs: inputs, selectedHabitID: habitID)
             )
-            request.httpBody = try jsonEncoder.encode(body)
+            request.httpBody = try widgetJSONEncoder.encode(body)
             let (_, response) = try await URLSession.shared.data(for: request)
             try validate(response: response)
             log("POST /checkin ok elapsed=\(Date().timeIntervalSince(startedAt))s")
         } catch {
             log("POST /checkin failed: \(error.localizedDescription)")
+        }
+    }
+
+    /// 只上传指纹不在远端 manifest 里的图片，并把 manifest 回写。
+    private static func uploadChangedImages(inputs: [WidgetHabitSnapshotInput]) async {
+        let withImages = inputs.filter { $0.imageData != nil }
+        guard !withImages.isEmpty else { return }
+
+        var manifest = await fetchRemoteImageManifest()
+
+        for input in withImages {
+            guard let imageData = input.imageData,
+                  let fileName = WidgetSnapshotFactory.remoteImageFileName(for: input)
+            else { continue }
+            if manifest.contains(fileName) { continue }
+
+            do {
+                var imageRequest = try request(path: "/v1/image/\(RemoteWidgetConfig.deviceKey)/\(fileName)", method: "PUT")
+                imageRequest.setValue("image/jpeg", forHTTPHeaderField: "Content-Type")
+                imageRequest.httpBody = imageData
+                let (_, response) = try await URLSession.shared.data(for: imageRequest)
+                try validate(response: response)
+                manifest.insert(fileName)
+                log("PUT /image ok file=\(fileName)")
+            } catch {
+                log("PUT /image failed file=\(fileName): \(error.localizedDescription)")
+            }
+        }
+
+        await putRemoteImageManifest(manifest)
+    }
+
+    private static func fetchRemoteImageManifest() async -> Set<String> {
+        do {
+            let request = try request(path: "/v1/images/\(RemoteWidgetConfig.deviceKey)", method: "GET")
+            let (data, response) = try await URLSession.shared.data(for: request)
+            try validate(response: response)
+            if let manifest = try? widgetJSONDecoder.decode([String: [String]].self, from: data),
+               let files = manifest["files"] {
+                return Set(files)
+            }
+            return Set((try? widgetJSONDecoder.decode([String].self, from: data)) ?? [])
+        } catch {
+            return []
+        }
+    }
+
+    private static func putRemoteImageManifest(_ manifest: Set<String>) async {
+        do {
+            var request = try request(path: "/v1/images/\(RemoteWidgetConfig.deviceKey)", method: "PUT")
+            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+            request.httpBody = try widgetJSONEncoder.encode(["files": manifest.sorted()])
+            let (_, response) = try await URLSession.shared.data(for: request)
+            try validate(response: response)
+        } catch {
+            log("PUT /images manifest failed: \(error.localizedDescription)")
         }
     }
 
@@ -306,10 +330,10 @@ private actor WidgetSnapshotWriteCoordinator {
 
         removeStaleImages(in: imagesDirectory, keeping: activeImageFileNames)
 
-        guard let data = try? jsonEncoder.encode(snapshots),
-              let defaults = UserDefaults(suiteName: WidgetSnapshotWriter.suiteName)
+        guard let data = try? widgetJSONEncoder.encode(snapshots),
+              let defaults = UserDefaults(suiteName: WidgetSharedDefaults.appGroupIdentifier)
         else { return }
-        defaults.set(data, forKey: WidgetSnapshotWriter.snapshotsKey)
+        defaults.set(data, forKey: WidgetSharedDefaults.snapshotsKey)
         defaults.synchronize()
         log("local App Group fallback wrote habits=\(snapshots.count)")
     }
@@ -323,7 +347,7 @@ private actor WidgetSnapshotWriteCoordinator {
     }
 
     private static func widgetImagesDirectory() -> URL {
-        let baseURL = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: WidgetSnapshotWriter.suiteName)
+        let baseURL = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: WidgetSharedDefaults.appGroupIdentifier)
             ?? FileManager.default.temporaryDirectory
         return baseURL.appendingPathComponent(WidgetSnapshotWriter.imagesDirectoryName, isDirectory: true)
     }
@@ -337,7 +361,7 @@ private actor WidgetSnapshotWriteCoordinator {
 
     private static func writeImageIfNeeded(id: UUID, imageData: Data?, in directory: URL) -> String? {
         guard let imageData else { return nil }
-        let fileName = "\(id.uuidString)-\(imageFingerprint(imageData)).jpg"
+        let fileName = "\(id.uuidString)-\(widgetImageFingerprint(imageData)).jpg"
         let fileURL = directory.appendingPathComponent(fileName)
         if FileManager.default.fileExists(atPath: fileURL.path) {
             return fileName
@@ -349,21 +373,6 @@ private actor WidgetSnapshotWriteCoordinator {
             return nil
         }
     }
-
-    private static func imageFingerprint(_ data: Data) -> String {
-        var hash: UInt64 = 5381
-        for byte in data.prefix(4096) {
-            hash = ((hash << 5) &+ hash) &+ UInt64(byte)
-        }
-        hash = ((hash << 5) &+ hash) &+ UInt64(data.count)
-        return String(hash, radix: 16)
-    }
-}
-
-private struct RemoteCheckInRequest: Codable {
-    var habitID: UUID
-    var isCompletedToday: Bool
-    var snapshot: WidgetRemoteSnapshot
 }
 
 private enum RemoteWidgetError: LocalizedError {
@@ -379,12 +388,6 @@ private enum RemoteWidgetError: LocalizedError {
         }
     }
 }
-
-private let jsonEncoder: JSONEncoder = {
-    let encoder = JSONEncoder()
-    encoder.dateEncodingStrategy = .iso8601
-    return encoder
-}()
 
 private let logDateFormatStyle = Date.ISO8601FormatStyle(includingFractionalSeconds: true)
 

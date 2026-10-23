@@ -27,6 +27,17 @@ let dailyStats = HabitStatsCalculator(calendar: calendar).stats(for: dailyHabit,
 require(dailyStats.currentStreak == 3, "daily streak should be 3")
 require(dailyStats.totalCompletedDays == 3, "total completed days should be 3")
 
+// 今天还没打卡时，连续天数不能清零——从昨天开始回溯。
+let pendingStats = HabitStatsCalculator(calendar: calendar).stats(for: dailyHabit, checkIns: dailyCheckIns, today: date(2026, 6, 12))
+require(pendingStats.currentStreak == 3, "streak must survive an unchecked today")
+require(pendingStats.totalCompletedDays == 3, "unchecked today must not change total days")
+
+// 今天不是目标日时不回溯，连续天数按既有目标日累计。
+let weekendHabit = Habit(name: "周末", targetWeekdays: [1, 7])
+let weekendCheckIns = [CheckIn(habitID: weekendHabit.id, day: date(2026, 6, 7))]
+let weekendStats = HabitStatsCalculator(calendar: calendar).stats(for: weekendHabit, checkIns: weekendCheckIns, today: date(2026, 6, 8))
+require(weekendStats.currentStreak == 1, "streak on non-target day must keep counting prior target days")
+
 let weekdayHabit = Habit(name: "运动", targetWeekdays: Set(2...6))
 let weekdayCheckIns = [
     CheckIn(habitID: weekdayHabit.id, day: date(2026, 6, 8)),

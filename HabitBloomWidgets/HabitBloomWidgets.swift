@@ -3,63 +3,8 @@ import Foundation
 import SwiftUI
 import WidgetKit
 
-private let suiteName = widgetInfoValue(for: "HBAppGroupIdentifier", fallback: "group.com.example.HabitBloom")
-private let snapshotsKey = "habitWidgetSnapshots"
-private let remoteSnapshotCacheKey = "remoteWidgetSnapshot"
 private let remoteRequestTimeout: TimeInterval = 8
 private let optionsRemoteRequestTimeout: TimeInterval = 1.5
-
-private func widgetInfoValue(for key: String, fallback: String = "") -> String {
-    guard let value = Bundle.main.object(forInfoDictionaryKey: key) as? String else { return fallback }
-    let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
-    if trimmed.isEmpty || trimmed.contains("$(") {
-        return fallback
-    }
-    return trimmed
-}
-
-private enum RemoteWidgetConfig {
-    static let baseURLString = widgetInfoValue(for: "HBRemoteBaseURL")
-    static let deviceKey = widgetInfoValue(for: "HBRemoteDeviceKey")
-
-    static var isConfigured: Bool {
-        baseURLString.hasPrefix("https://")
-            && !baseURLString.contains("$(")
-            && !deviceKey.isEmpty
-            && !deviceKey.contains("$(")
-    }
-
-}
-
-struct WidgetRemoteSnapshot: Codable {
-    var deviceKey: String
-    var updatedAt: Date
-    var selectedHabitID: UUID?
-    var habits: [WidgetHabitSnapshot]
-}
-
-struct WidgetHabitSnapshot: Identifiable, Codable {
-    var id: UUID
-    var name: String
-    var icon: String
-    var colorName: String
-    var cardStyle: String? = nil
-    var streakDays: Int
-    var totalDays: Int
-    var completionRate: Double? = nil
-    var isCompletedToday: Bool
-    var imageFileName: String? = nil
-    var imageData: Data? = nil
-    var updatedAt: Date? = nil
-
-    var effectiveCardStyle: String {
-        cardStyle ?? "soft"
-    }
-
-    var effectiveCompletionRate: Double {
-        min(max(completionRate ?? 0, 0), 1)
-    }
-}
 
 struct HabitTimelineEntry: TimelineEntry {
     let date: Date
@@ -85,9 +30,10 @@ struct HabitTimelineEntry: TimelineEntry {
             selectedHabitID?.uuidString ?? "default",
             selectedHabitName ?? "no-name",
             habit.id.uuidString,
-            habit.effectiveCardStyle,
+            habit.cardStyle,
             habit.imageFileName ?? "no-image",
-            String(habit.updatedAt?.timeIntervalSince1970 ?? 0)
+            String(habit.updatedAt.timeIntervalSince1970),
+            habit.isCompletedToday ? "done" : "pending"
         ].joined(separator: "-")
     }
 }
@@ -117,7 +63,7 @@ struct HabitProvider: AppIntentTimelineProvider {
             selectedHabitID: configuration.habit?.uuid ?? snapshot.selectedHabitID,
             selectedHabitName: configuration.habit?.name
         )
-        return Timeline(entries: [entry], policy: .after(Date().addingTimeInterval(900)))
+        return widgetTimeline(with: entry)
     }
 }
 
@@ -139,9 +85,29 @@ struct SimpleHabitProvider: TimelineProvider {
         Task {
             let snapshot = await WidgetSnapshotStore.loadSnapshot(reason: "simple timeline")
             let entry = HabitTimelineEntry(date: Date(), habits: snapshot.habits, selectedHabitID: snapshot.selectedHabitID, selectedHabitName: nil)
-            completion(Timeline(entries: [entry], policy: .after(Date().addingTimeInterval(900))))
+            completion(widgetTimeline(with: entry))
         }
     }
+}
+
+/// 15 分钟常规刷新 + 跨午夜后 5 秒各一个刷新点，保证 0 点后「今日」状态自动翻篇。
+private func widgetTimeline(with entry: HabitTimelineEntry) -> Timeline<HabitTimelineEntry> {
+    var entries = [entry]
+    let calendar = Calendar.current
+    if let tomorrow = calendar.date(byAdding: .day, value: 1, to: calendar.startOfDay(for: Date())),
+       let midnightEntry = calendar.date(byAdding: .second, value: 5, to: tomorrow) as Date? {
+        entries.append(HabitTimelineEntry(
+            date: midnightEntry,
+            habits: entry.habits.map { habit in
+                var copy = habit
+                copy.isCompletedToday = false
+                return copy
+            },
+            selectedHabitID: entry.selectedHabitID,
+            selectedHabitName: entry.selectedHabitName
+        ))
+    }
+    return Timeline(entries: entries, policy: .after(Date().addingTimeInterval(900)))
 }
 
 struct HabitSelectionIntent: WidgetConfigurationIntent {
@@ -202,7 +168,7 @@ struct HabitWidgetEntityQuery: EntityQuery {
     }
 }
 
-private enum WidgetSnapshotStore {
+enum WidgetSnapshotStore {
     static func loadSnapshot(reason: String) async -> WidgetRemoteSnapshot {
         if let remote = await RemoteWidgetClient.fetchSnapshot(reason: reason, timeout: remoteRequestTimeout) {
             cache(remote)
@@ -259,23 +225,23 @@ private enum WidgetSnapshotStore {
 
     private static func cache(_ snapshot: WidgetRemoteSnapshot) {
         guard let data = try? widgetJSONEncoder.encode(snapshot) else { return }
-        UserDefaults.standard.set(data, forKey: remoteSnapshotCacheKey)
+        UserDefaults.standard.set(data, forKey: WidgetSharedDefaults.remoteSnapshotCacheKey)
     }
 
     private static func cachedSnapshot() -> WidgetRemoteSnapshot? {
-        guard let data = UserDefaults.standard.data(forKey: remoteSnapshotCacheKey) else { return nil }
+        guard let data = UserDefaults.standard.data(forKey: WidgetSharedDefaults.remoteSnapshotCacheKey) else { return nil }
         return try? widgetJSONDecoder.decode(WidgetRemoteSnapshot.self, from: data)
     }
 
     private static func appGroupSnapshot() -> WidgetRemoteSnapshot? {
         guard
-            let data = UserDefaults(suiteName: suiteName)?.data(forKey: snapshotsKey),
+            let data = WidgetSharedDefaults.suiteDefaults?.data(forKey: WidgetSharedDefaults.snapshotsKey),
             let snapshots = try? widgetJSONDecoder.decode([WidgetHabitSnapshot].self, from: data)
         else { return nil }
 
         return WidgetRemoteSnapshot(
             deviceKey: RemoteWidgetConfig.deviceKey,
-            updatedAt: snapshots.map(\.updatedAt).compactMap { $0 }.max() ?? Date(),
+            updatedAt: snapshots.map(\.updatedAt).max() ?? Date(),
             selectedHabitID: snapshots.first?.id,
             habits: snapshots
         )
@@ -284,7 +250,7 @@ private enum WidgetSnapshotStore {
 
 private enum RemoteWidgetClient {
     static func fetchSnapshot(reason: String, timeout: TimeInterval) async -> WidgetRemoteSnapshot? {
-        guard RemoteWidgetConfig.isConfigured else {
+        guard RemoteWidgetConfig.isReadable else {
             widgetLog("remote GET skipped: config missing reason=\(reason)")
             return nil
         }
@@ -339,7 +305,7 @@ struct SingleHabitWidgetView: View {
                     HStack(alignment: .top) {
                         WidgetIcon(systemName: habit.icon, colorName: habit.colorName, isOnImage: usesImagePresentation)
                         Spacer(minLength: 10)
-                        CompletionDot(isCompleted: habit.isCompletedToday, isOnImage: usesImagePresentation)
+                        WidgetCheckInButton(habit: habit, isOnImage: usesImagePresentation, size: 26)
                     }
                     Spacer(minLength: 6)
                     HStack(alignment: .bottom, spacing: 12) {
@@ -354,7 +320,7 @@ struct SingleHabitWidgetView: View {
                     HStack {
                         WidgetIcon(systemName: habit.icon, colorName: habit.colorName, isOnImage: usesImagePresentation)
                         Spacer()
-                        CompletionDot(isCompleted: habit.isCompletedToday, isOnImage: usesImagePresentation)
+                        WidgetCheckInButton(habit: habit, isOnImage: usesImagePresentation, size: 22)
                     }
                     Spacer(minLength: 8)
                     HStack(alignment: .bottom, spacing: 8) {
@@ -403,6 +369,7 @@ struct MultiHabitWidgetView: View {
                             .foregroundStyle(.secondary)
                     }
                     .monospacedDigit()
+                    WidgetCheckInButton(habit: habit, size: 20)
                 }
                 .font(.subheadline)
                 .padding(.vertical, 5)
@@ -462,6 +429,25 @@ struct WidgetBackground: View {
     }
 }
 
+private struct WidgetCheckInButton: View {
+    let habit: WidgetHabitSnapshot
+    var isOnImage = false
+    var size: CGFloat = 22
+
+    var body: some View {
+        Button(intent: ToggleHabitCheckInIntent(habitID: habit.id)) {
+            Image(systemName: habit.isCompletedToday ? "checkmark.circle.fill" : "circle")
+                .font(.system(size: size, weight: .semibold))
+                .foregroundStyle(habit.isCompletedToday ? (isOnImage ? .white : .green) : (isOnImage ? .white.opacity(0.86) : .secondary))
+                .symbolRenderingMode(.hierarchical)
+                .frame(width: size + 14, height: size + 14)
+                .background((isOnImage ? Color.black.opacity(0.26) : Color.white.opacity(0.30)), in: Circle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(habit.isCompletedToday ? "取消今日打卡" : "完成今日打卡")
+    }
+}
+
 private struct WidgetTextBlock: View {
     let habit: WidgetHabitSnapshot
     var showsTotal = false
@@ -515,18 +501,6 @@ private struct WidgetIconGlyph: View {
     }
 }
 
-private struct CompletionDot: View {
-    let isCompleted: Bool
-    var isOnImage = false
-
-    var body: some View {
-        Image(systemName: isCompleted ? "checkmark.circle.fill" : "circle")
-            .font(.system(size: 18, weight: .semibold))
-            .foregroundStyle(isCompleted ? (isOnImage ? .white : .green) : (isOnImage ? .white.opacity(0.86) : .secondary))
-            .symbolRenderingMode(.hierarchical)
-    }
-}
-
 private struct DaysBlock: View {
     let days: Int
     let title: String
@@ -575,7 +549,7 @@ private struct WidgetStickerBackground: View {
     let snapshot: WidgetHabitSnapshot
 
     var body: some View {
-        switch snapshot.effectiveCardStyle {
+        switch snapshot.cardStyle {
         case "glass":
             Rectangle()
                 .fill(.thinMaterial)
@@ -654,7 +628,7 @@ struct SingleHabitWidget: Widget {
                 }
         }
         .configurationDisplayName("单个目标")
-        .description("显示一个目标和连续打卡天数。")
+        .description("显示一个目标和连续打卡天数，点圆圈即可打卡。")
         .supportedFamilies([.systemSmall, .systemMedium])
         .contentMarginsDisabled()
     }
@@ -669,7 +643,7 @@ struct MultiHabitWidget: Widget {
                 }
         }
         .configurationDisplayName("多个目标")
-        .description("极简显示多个目标的连续天数。")
+        .description("极简显示多个目标的连续天数，点圆圈即可打卡。")
         .supportedFamilies([.systemMedium, .systemLarge])
         .contentMarginsDisabled()
     }
@@ -699,7 +673,7 @@ struct HabitBloomWidgetBundle: WidgetBundle {
     }
 }
 
-private extension WidgetHabitSnapshot {
+extension WidgetHabitSnapshot {
     static let placeholder = WidgetHabitSnapshot(
         id: UUID(),
         name: "打开 App 刷新",
@@ -715,8 +689,12 @@ private extension WidgetHabitSnapshot {
         updatedAt: Date()
     )
 
+    var effectiveCompletionRate: Double {
+        min(max(completionRate, 0), 1)
+    }
+
     var usesImageBackground: Bool {
-        effectiveCardStyle == "image" && widgetImage(for: self) != nil
+        cardStyle == "image" && widgetImage(for: self) != nil
     }
 }
 
@@ -747,7 +725,7 @@ private var widgetSecondarySystemBackgroundColor: Color {
 #endif
 }
 
-private extension String {
+extension String {
     var isEmojiIcon: Bool {
         count <= 4 && unicodeScalars.contains { scalar in
             scalar.properties.isEmojiPresentation || scalar.properties.isEmoji
@@ -755,21 +733,9 @@ private extension String {
     }
 }
 
-private let widgetJSONDecoder: JSONDecoder = {
-    let decoder = JSONDecoder()
-    decoder.dateDecodingStrategy = .iso8601
-    return decoder
-}()
-
-private let widgetJSONEncoder: JSONEncoder = {
-    let encoder = JSONEncoder()
-    encoder.dateEncodingStrategy = .iso8601
-    return encoder
-}()
-
 private let widgetLogDateFormatStyle = Date.ISO8601FormatStyle(includingFractionalSeconds: true)
 
-private func widgetLog(_ message: String) {
+func widgetLog(_ message: String) {
     print("[HabitBloomWidgetRemote] \(Date().iso8601LogString) \(message)")
 }
 
@@ -782,7 +748,7 @@ private extension Date {
 private func widgetImage(for snapshot: WidgetHabitSnapshot) -> PlatformImage? {
     if let imageFileName = snapshot.imageFileName,
        let imageDirectory = FileManager.default
-        .containerURL(forSecurityApplicationGroupIdentifier: suiteName)?
+        .containerURL(forSecurityApplicationGroupIdentifier: WidgetSharedDefaults.appGroupIdentifier)?
         .appendingPathComponent("WidgetImages", isDirectory: true) {
         let imageURL = imageDirectory.appendingPathComponent(imageFileName)
         if let data = try? Data(contentsOf: imageURL),

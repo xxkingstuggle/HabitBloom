@@ -70,6 +70,16 @@ For production, set the Worker secret in Cloudflare:
 npx wrangler secret put WRITE_TOKEN
 ```
 
+## Widget Images over Remote Sync
+
+Image-card snapshots no longer embed image bytes in every request. The app keeps a per-device image manifest on the Worker:
+
+- `PUT /v1/image/<deviceKey>/<fileName>` uploads one optimized JPEG (only when its fingerprint changes). Auth required.
+- `GET /v1/image/<deviceKey>/<fileName>` serves an immutable JPEG. No auth: file names embed a content fingerprint and the device key path is the capability.
+- `GET/PUT /v1/images/<deviceKey>` reads/writes the manifest (`{"files": [...]}`). Auth required for `PUT`.
+
+Snapshots and check-in payloads carry `imageFileName` references only. Widgets running where the App Group works read images from the local `WidgetImages` directory; sideloaded widgets fall back to the embedded `imageData` only when the remote snapshot still carries it.
+
 ## Backup Boundary
 
 Cloud backup stores only lightweight text data:

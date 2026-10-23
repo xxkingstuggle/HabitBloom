@@ -38,6 +38,7 @@ targets:
     sources:
       - path: HabitBloomApp
       - path: Sources/HabitCore
+      - path: Sources/HabitWidgetShared
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: $(HABITBLOOM_APP_BUNDLE_ID)
@@ -58,6 +59,7 @@ targets:
     deploymentTarget: "17.0"
     sources:
       - path: HabitBloomWidgets
+      - path: Sources/HabitWidgetShared
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: $(HABITBLOOM_WIDGET_BUNDLE_ID)
@@ -71,6 +73,7 @@ targets:
     deploymentTarget: "14.0"
     sources:
       - path: HabitBloomWidgets
+      - path: Sources/HabitWidgetShared
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: $(HABITBLOOM_WIDGET_BUNDLE_ID)

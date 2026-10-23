@@ -1,5 +1,6 @@
 import SwiftData
 import SwiftUI
+import WidgetKit
 
 @main
 struct HabitBloomApp: App {
@@ -9,6 +10,13 @@ struct HabitBloomApp: App {
         WindowGroup {
             ContentView()
                 .preferredColorScheme(appTheme.colorScheme)
+                .task {
+                    let context = HabitModelContainer.shared.mainContext
+                    let habits = (try? context.fetch(FetchDescriptor<HabitEntity>())) ?? []
+                    let snapshots = habits.map(ReminderScheduleSnapshot.init)
+                    await ReminderScheduler.restoreSuppressedReminders(snapshots: snapshots)
+                    await WidgetCheckInMerge.mergePendingWidgetCheckIns(into: context)
+                }
         }
         .modelContainer(HabitModelContainer.shared)
     }

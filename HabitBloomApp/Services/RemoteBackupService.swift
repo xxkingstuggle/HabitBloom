@@ -35,6 +35,22 @@ struct RemoteBackupCheckIn: Codable, Sendable {
 enum RemoteBackupService {
     private static let coordinator = RemoteBackupCoordinator()
 
+    /// 本地 JSON 备份导出：与云端同构，便于用户完全掌控数据。
+    @MainActor
+    static func exportLocalArchive(habits: [HabitEntity]) throws -> Data {
+        let archive = makeArchive(habits: habits)
+        let encoder = JSONEncoder()
+        encoder.dateEncodingStrategy = .iso8601
+        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+        return try encoder.encode(archive)
+    }
+
+    @MainActor
+    static func importLocalArchive(data: Data, into context: ModelContext, existingHabits: [HabitEntity]) throws -> [HabitEntity] {
+        let archive = try jsonDecoder.decode(RemoteBackupArchive.self, from: data)
+        return try restore(archive: archive, into: context, existingHabits: existingHabits)
+    }
+
     @MainActor
     static func scheduleUpload(habits: [HabitEntity], delayMilliseconds: UInt64 = 1_200) {
         coordinator.scheduleUpload(habits: habits, delayMilliseconds: delayMilliseconds)
@@ -178,7 +194,7 @@ private final class RemoteBackupCoordinator {
 
 private enum RemoteBackupClient {
     static func getWidgetSnapshot() async throws -> WidgetRemoteSnapshot {
-        guard RemoteWidgetConfig.isConfigured,
+        guard RemoteWidgetConfig.isReadable,
               let baseURL = URL(string: RemoteWidgetConfig.baseURLString)
         else { throw RemoteBackupError.notConfigured }
 
@@ -209,8 +225,20 @@ private enum RemoteBackupClient {
         return try jsonDecoder.decode(RemoteBackupArchive.self, from: data)
     }
 
+    /// 远端已上传的图片文件名清单（只读鉴权用 deviceKey，不写也能查）。
+    static func getImageManifest() async throws -> [String] {
+        let request = try request(path: "/v1/images/\(RemoteWidgetConfig.deviceKey)", method: "GET")
+        let (data, response) = try await URLSession.shared.data(for: request)
+        try validate(response: response)
+        if let manifest = try? jsonDecoder.decode([String: [String]].self, from: data),
+           let files = manifest["files"] {
+            return files
+        }
+        return (try? jsonDecoder.decode([String].self, from: data)) ?? []
+    }
+
     private static func request(path: String, method: String) throws -> URLRequest {
-        guard RemoteWidgetConfig.isConfigured,
+        guard RemoteWidgetConfig.isWritable,
               let baseURL = URL(string: RemoteWidgetConfig.baseURLString)
         else { throw RemoteBackupError.notConfigured }
 
