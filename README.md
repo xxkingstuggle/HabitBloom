@@ -202,3 +202,9 @@ HABITBLOOM_REMOTE_WRITE_TOKEN
 HabitBloom 已经可以用于日常打卡、桌面小组件展示、本地提醒和轻量云端备份。后续主要优化方向是小组件提醒状态、更多视觉细节、图片卡片渲染缓存和更完整的设备回归测试。
 
 当前实现状态见 [PROJECT_STATUS.md](PROJECT_STATUS.md)，测试清单见 [TESTING.md](TESTING.md)。
+
+## 开源许可
+
+源代码采用 [MIT License](LICENSE) 发布。请保留版权和许可声明；Apple SwiftUI / WidgetKit、Cloudflare 等第三方平台及服务遵循各自条款。
+
+本仓库不提供作者的 Cloudflare 凭据、开发证书和签名材料。克隆后请使用你自己的本地配置，勿在 Issue 中公开令牌或用户打卡数据。
