@@ -170,54 +170,70 @@ struct HabitWidgetEntityQuery: EntityQuery {
 
 enum WidgetSnapshotStore {
     static func loadSnapshot(reason: String) async -> WidgetRemoteSnapshot {
+        let now = Date()
+        let pending = WidgetPendingCheckInStore.load()
+
         if let remote = await RemoteWidgetClient.fetchSnapshot(reason: reason, timeout: remoteRequestTimeout) {
-            cache(remote)
-            widgetLog("using remote reason=\(reason) updatedAt=\(remote.updatedAt.iso8601LogString) selectedID=\(remote.selectedHabitID?.uuidString ?? "nil")")
-            if !remote.habits.isEmpty {
-                return remote
+            let normalized = WidgetSnapshotRollover.overlayPendingCheckIns(remote, pending: pending, referenceDate: now)
+            cache(normalized)
+            widgetLog("using remote reason=\(reason) updatedAt=\(normalized.updatedAt.iso8601LogString) selectedID=\(normalized.selectedHabitID?.uuidString ?? "nil")")
+            if !normalized.habits.isEmpty {
+                return normalized
             }
             return placeholderSnapshot(reason: reason)
         }
 
         if let cached = cachedSnapshot(), !cached.habits.isEmpty {
-            widgetLog("using widget cache reason=\(reason) updatedAt=\(cached.updatedAt.iso8601LogString) selectedID=\(cached.selectedHabitID?.uuidString ?? "nil")")
-            return cached
+            let normalized = WidgetSnapshotRollover.overlayPendingCheckIns(cached, pending: pending, referenceDate: now)
+            widgetLog("using widget cache reason=\(reason) updatedAt=\(normalized.updatedAt.iso8601LogString) selectedID=\(normalized.selectedHabitID?.uuidString ?? "nil")")
+            return normalized
         }
 
         if let appGroup = appGroupSnapshot(), !appGroup.habits.isEmpty {
-            widgetLog("using App Group fallback reason=\(reason) habits=\(appGroup.habits.count)")
-            return appGroup
+            let normalized = WidgetSnapshotRollover.overlayPendingCheckIns(appGroup, pending: pending, referenceDate: now)
+            widgetLog("using App Group fallback reason=\(reason) habits=\(normalized.habits.count)")
+            return normalized
         }
 
         return placeholderSnapshot(reason: reason)
     }
 
     static func loadOptionsSnapshot(reason: String) async -> WidgetRemoteSnapshot {
+        let now = Date()
         if let appGroup = appGroupSnapshot(), !appGroup.habits.isEmpty {
-            widgetLog("using App Group options reason=\(reason) habits=\(appGroup.habits.count)")
-            return appGroup
+            let normalized = WidgetSnapshotRollover.rolledOver(appGroup, referenceDate: now)
+            widgetLog("using App Group options reason=\(reason) habits=\(normalized.habits.count)")
+            return normalized
         }
 
         if let cached = cachedSnapshot(), !cached.habits.isEmpty {
-            widgetLog("using widget cache options reason=\(reason) updatedAt=\(cached.updatedAt.iso8601LogString) selectedID=\(cached.selectedHabitID?.uuidString ?? "nil")")
-            return cached
+            let normalized = WidgetSnapshotRollover.rolledOver(cached, referenceDate: now)
+            widgetLog("using widget cache options reason=\(reason) updatedAt=\(normalized.updatedAt.iso8601LogString) selectedID=\(normalized.selectedHabitID?.uuidString ?? "nil")")
+            return normalized
         }
 
         if let remote = await RemoteWidgetClient.fetchSnapshot(reason: "options \(reason)", timeout: optionsRemoteRequestTimeout),
            !remote.habits.isEmpty {
-            cache(remote)
-            widgetLog("using remote options reason=\(reason) updatedAt=\(remote.updatedAt.iso8601LogString) habits=\(remote.habits.count)")
-            return remote
+            let normalized = WidgetSnapshotRollover.rolledOver(remote, referenceDate: now)
+            cache(normalized)
+            widgetLog("using remote options reason=\(reason) updatedAt=\(normalized.updatedAt.iso8601LogString) habits=\(normalized.habits.count)")
+            return normalized
         }
 
         return placeholderSnapshot(reason: "options \(reason)")
     }
 
+    static func saveCachedSnapshot(_ snapshot: WidgetRemoteSnapshot) {
+        cache(snapshot)
+    }
+
     private static func placeholderSnapshot(reason: String) -> WidgetRemoteSnapshot {
+        let now = Date()
         widgetLog("using placeholder reason=\(reason)")
         return WidgetRemoteSnapshot(
             deviceKey: RemoteWidgetConfig.deviceKey,
-            updatedAt: Date(),
+            updatedAt: now,
+            dayKey: WidgetDayKey.string(for: now),
             selectedHabitID: WidgetHabitSnapshot.placeholder.id,
             habits: [.placeholder]
         )

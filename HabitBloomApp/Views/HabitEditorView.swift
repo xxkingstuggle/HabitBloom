@@ -165,6 +165,7 @@ struct HabitEditorView: View {
         target.reminderWeekdayMask = reminderWeekdayMask
 
         if habit == nil {
+            target.sortOrder = (habits.map(\.sortOrder).max() ?? -1) + 1
             modelContext.insert(target)
         }
 

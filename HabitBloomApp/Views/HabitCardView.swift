@@ -22,8 +22,13 @@ struct HabitCardView: View {
         HabitCardKind(rawValue: habit.cardStyle) ?? .soft
     }
 
+    private var cachedStickerImage: PlatformImage? {
+        guard cardKind == .image else { return nil }
+        return StickerImageCache.shared.image(for: habit.imageData, maxPixelSize: 960)
+    }
+
     private var usesImageBackground: Bool {
-        cardKind == .image && platformImage(from: habit.imageData) != nil
+        cachedStickerImage != nil
     }
 
     var body: some View {
@@ -197,7 +202,7 @@ struct HabitCardView: View {
                 .fill(Color(.secondarySystemBackground))
                 .overlay(palette.accent.opacity(0.16), alignment: .leading)
         case .image:
-            if let image = platformImage(from: habit.imageData) {
+            if let image = cachedStickerImage {
                 GeometryReader { proxy in
                     Image(platformImage: image)
                         .resizable()
@@ -317,11 +322,6 @@ private struct CardProgressBar: View {
 import AppKit
 typealias PlatformImage = NSImage
 
-private func platformImage(from data: Data?) -> PlatformImage? {
-    guard let data else { return nil }
-    return NSImage(data: data)
-}
-
 private extension Image {
     init(platformImage: PlatformImage) {
         self.init(nsImage: platformImage)
@@ -330,11 +330,6 @@ private extension Image {
 #else
 import UIKit
 typealias PlatformImage = UIImage
-
-private func platformImage(from data: Data?) -> PlatformImage? {
-    guard let data else { return nil }
-    return UIImage(data: data)
-}
 
 private extension Image {
     init(platformImage: PlatformImage) {

@@ -111,9 +111,11 @@ private struct WidgetHabitSnapshotInput: Sendable {
 private enum WidgetSnapshotFactory {
     /// 远程快照：图片卡片只带指纹文件名（服务端去重），不再每次全量上传图片字节。
     static func makeRemoteSnapshot(inputs: [WidgetHabitSnapshotInput], selectedHabitID: UUID?) -> WidgetRemoteSnapshot {
+        let now = Date()
         WidgetRemoteSnapshot(
             deviceKey: RemoteWidgetConfig.deviceKey,
-            updatedAt: Date(),
+            updatedAt: now,
+            dayKey: WidgetDayKey.string(for: now),
             selectedHabitID: selectedHabitID,
             habits: inputs.map { input in
                 WidgetHabitSnapshot(
@@ -221,10 +223,12 @@ private actor WidgetSnapshotWriteCoordinator {
 
         do {
             var request = try request(path: "/v1/checkin/\(RemoteWidgetConfig.deviceKey)", method: "POST")
+            let remoteSnapshot = WidgetSnapshotFactory.makeRemoteSnapshot(inputs: inputs, selectedHabitID: habitID)
             let body = RemoteCheckInRequest(
                 habitID: habitID,
                 isCompletedToday: isCompletedToday,
-                snapshot: WidgetSnapshotFactory.makeRemoteSnapshot(inputs: inputs, selectedHabitID: habitID)
+                dayKey: remoteSnapshot.dayKey,
+                snapshot: remoteSnapshot
             )
             request.httpBody = try widgetJSONEncoder.encode(body)
             let (_, response) = try await URLSession.shared.data(for: request)
@@ -235,12 +239,14 @@ private actor WidgetSnapshotWriteCoordinator {
         }
     }
 
-    /// 只上传指纹不在远端 manifest 里的图片，并把 manifest 回写。
+    /// 只上传指纹不在远端 manifest 里的图片，并把当前有效图片清单回写，让 Worker 清理孤儿图片键。
     private static func uploadChangedImages(inputs: [WidgetHabitSnapshotInput]) async {
         let withImages = inputs.filter { $0.imageData != nil }
-        guard !withImages.isEmpty else { return }
+        let activeFiles = Set(withImages.compactMap { WidgetSnapshotFactory.remoteImageFileName(for: $0) })
 
         var manifest = await fetchRemoteImageManifest()
+        var syncedManifest = manifest.intersection(activeFiles)
+        var didUploadAny = false
 
         for input in withImages {
             guard let imageData = input.imageData,
@@ -255,13 +261,17 @@ private actor WidgetSnapshotWriteCoordinator {
                 let (_, response) = try await URLSession.shared.data(for: imageRequest)
                 try validate(response: response)
                 manifest.insert(fileName)
+                syncedManifest.insert(fileName)
+                didUploadAny = true
                 log("PUT /image ok file=\(fileName)")
             } catch {
                 log("PUT /image failed file=\(fileName): \(error.localizedDescription)")
             }
         }
 
-        await putRemoteImageManifest(manifest)
+        if didUploadAny || syncedManifest != manifest {
+            await putRemoteImageManifest(syncedManifest)
+        }
     }
 
     private static func fetchRemoteImageManifest() async -> Set<String> {

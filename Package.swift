@@ -10,12 +10,14 @@ let package = Package(
     ],
     products: [
         .library(name: "HabitCore", targets: ["HabitCore"]),
+        .library(name: "HabitWidgetShared", targets: ["HabitWidgetShared"]),
         .executable(name: "HabitCoreSmokeTests", targets: ["HabitCoreSmokeTests"]),
         .executable(name: "HabitCoreStressTests", targets: ["HabitCoreStressTests"])
     ],
     targets: [
         .target(name: "HabitCore"),
-        .executableTarget(name: "HabitCoreSmokeTests", dependencies: ["HabitCore"]),
-        .executableTarget(name: "HabitCoreStressTests", dependencies: ["HabitCore"])
+        .target(name: "HabitWidgetShared"),
+        .executableTarget(name: "HabitCoreSmokeTests", dependencies: ["HabitCore", "HabitWidgetShared"]),
+        .executableTarget(name: "HabitCoreStressTests", dependencies: ["HabitCore", "HabitWidgetShared"])
     ]
 )

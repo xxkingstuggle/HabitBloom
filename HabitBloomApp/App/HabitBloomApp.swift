@@ -12,10 +12,7 @@ struct HabitBloomApp: App {
                 .preferredColorScheme(appTheme.colorScheme)
                 .task {
                     let context = HabitModelContainer.shared.mainContext
-                    let habits = (try? context.fetch(FetchDescriptor<HabitEntity>())) ?? []
-                    let snapshots = habits.map(ReminderScheduleSnapshot.init)
-                    await ReminderScheduler.restoreSuppressedReminders(snapshots: snapshots)
-                    await WidgetCheckInMerge.mergePendingWidgetCheckIns(into: context)
+                    await StartupSyncCoordinator.shared.ensureInitialSync(using: context)
                 }
         }
         .modelContainer(HabitModelContainer.shared)

@@ -1,37 +1,6 @@
 import Foundation
 import SwiftData
 
-struct RemoteBackupArchive: Codable, Sendable {
-    var version: Int
-    var deviceKey: String
-    var exportedAt: Date
-    var habits: [RemoteBackupHabit]
-}
-
-struct RemoteBackupHabit: Codable, Sendable {
-    var id: UUID
-    var name: String
-    var icon: String
-    var colorName: String?
-    var cardStyle: String?
-    var targetWeekdayMask: Int
-    var reminderEnabled: Bool
-    var reminderHour: Int
-    var reminderMinute: Int
-    var reminderWeekdayMask: Int
-    var sortOrder: Int
-    var createdAt: Date
-    var checkIns: [RemoteBackupCheckIn]
-}
-
-struct RemoteBackupCheckIn: Codable, Sendable {
-    var id: UUID
-    var day: Date
-    var isCompleted: Bool
-    var note: String
-    var createdAt: Date
-}
-
 enum RemoteBackupService {
     private static let coordinator = RemoteBackupCoordinator()
 
@@ -39,16 +8,43 @@ enum RemoteBackupService {
     @MainActor
     static func exportLocalArchive(habits: [HabitEntity]) throws -> Data {
         let archive = makeArchive(habits: habits)
-        let encoder = JSONEncoder()
-        encoder.dateEncodingStrategy = .iso8601
-        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+        let encoder = WidgetJSONCodec.makeEncoder(prettyPrinted: true)
         return try encoder.encode(archive)
     }
 
     @MainActor
-    static func importLocalArchive(data: Data, into context: ModelContext, existingHabits: [HabitEntity]) throws -> [HabitEntity] {
-        let archive = try jsonDecoder.decode(RemoteBackupArchive.self, from: data)
-        return try restore(archive: archive, into: context, existingHabits: existingHabits)
+    static func decodeLocalArchive(from data: Data) throws -> RemoteBackupArchive {
+        try WidgetJSONCodec.makeDecoder().decode(RemoteBackupArchive.self, from: data)
+    }
+
+    @MainActor
+    static func makeImportPlan(
+        archive: RemoteBackupArchive,
+        existingHabits: [HabitEntity],
+        calendar: Calendar = .current
+    ) -> BackupImportPlan {
+        let localArchive = makeArchive(habits: existingHabits)
+        return BackupImportPlanner.makePlan(
+            existingHabits: localArchive.habits,
+            importedArchive: archive,
+            calendar: calendar
+        )
+    }
+
+    @MainActor
+    static func importLocalArchive(
+        data: Data,
+        into context: ModelContext,
+        existingHabits: [HabitEntity],
+        strategy: BackupMergeStrategy = .overwriteWithImported
+    ) throws -> [HabitEntity] {
+        let archive = try decodeLocalArchive(from: data)
+        return try restore(
+            archive: archive,
+            into: context,
+            existingHabits: existingHabits,
+            strategy: strategy
+        )
     }
 
     @MainActor
@@ -75,7 +71,9 @@ enum RemoteBackupService {
         archive: RemoteBackupArchive,
         into context: ModelContext,
         existingHabits: [HabitEntity],
-        widgetSnapshot: WidgetRemoteSnapshot? = nil
+        widgetSnapshot: WidgetRemoteSnapshot? = nil,
+        strategy: BackupMergeStrategy = .overwriteWithImported,
+        calendar: Calendar = .current
     ) throws -> [HabitEntity] {
         var habitsByID = Dictionary(uniqueKeysWithValues: existingHabits.map { ($0.id, $0) })
         let widgetHabitsByID = Dictionary(
@@ -83,46 +81,74 @@ enum RemoteBackupService {
         )
 
         for source in archive.habits {
+            let isNewHabit = habitsByID[source.id] == nil
             let target = habitsByID[source.id] ?? HabitEntity(id: source.id, name: source.name)
             let widgetHabit = widgetHabitsByID[source.id]
-            target.name = source.name
-            target.icon = source.icon
-            target.colorName = source.colorName ?? widgetHabit?.colorName ?? target.colorName
-            target.cardStyle = source.cardStyle ?? widgetHabit?.cardStyle ?? target.cardStyle
-            target.targetWeekdayMask = source.targetWeekdayMask == 0 ? WeekdayMask.all : source.targetWeekdayMask
-            target.reminderEnabled = source.reminderEnabled
-            target.reminderHour = source.reminderHour
-            target.reminderMinute = source.reminderMinute
-            target.reminderWeekdayMask = source.reminderWeekdayMask == 0 ? WeekdayMask.all : source.reminderWeekdayMask
-            target.sortOrder = source.sortOrder
-            target.createdAt = source.createdAt
 
-            if habitsByID[source.id] == nil {
+            if isNewHabit || strategy == .overwriteWithImported {
+                target.name = source.name
+                target.icon = source.icon
+                target.colorName = source.colorName ?? widgetHabit?.colorName ?? target.colorName
+                target.cardStyle = source.cardStyle ?? widgetHabit?.cardStyle ?? target.cardStyle
+                target.targetWeekdayMask = source.targetWeekdayMask == 0 ? WeekdayMask.all : source.targetWeekdayMask
+                target.reminderEnabled = source.reminderEnabled
+                target.reminderHour = source.reminderHour
+                target.reminderMinute = source.reminderMinute
+                target.reminderWeekdayMask = source.reminderWeekdayMask == 0 ? WeekdayMask.all : source.reminderWeekdayMask
+                target.sortOrder = source.sortOrder
+                target.createdAt = source.createdAt
+            }
+
+            if isNewHabit {
                 context.insert(target)
                 habitsByID[source.id] = target
             }
 
-            var checkIns = target.checkIns ?? []
-            var checkInsByID = Dictionary(uniqueKeysWithValues: checkIns.map { ($0.id, $0) })
-            for sourceCheckIn in source.checkIns {
-                let normalizedDay = Calendar.current.startOfDay(for: sourceCheckIn.day)
-                let checkIn = checkInsByID[sourceCheckIn.id] ?? CheckInEntity(
-                    id: sourceCheckIn.id,
-                    day: normalizedDay,
-                    habit: target
-                )
-                checkIn.day = normalizedDay
-                checkIn.isCompleted = sourceCheckIn.isCompleted
-                checkIn.note = sourceCheckIn.note
-                checkIn.createdAt = sourceCheckIn.createdAt
-                checkIn.habit = target
-
-                if checkInsByID[sourceCheckIn.id] == nil {
-                    checkIns.append(checkIn)
-                    checkInsByID[sourceCheckIn.id] = checkIn
+            // 先对当前目标已有打卡按 normalizedDay 去重，确保 (habitID, normalizedDay) 唯一。
+            var existingByDay: [Date: CheckInEntity] = [:]
+            for item in target.checkIns ?? [] {
+                let normalizedDay = calendar.startOfDay(for: item.day)
+                item.day = normalizedDay
+                if let keeper = existingByDay[normalizedDay] {
+                    if item.createdAt > keeper.createdAt {
+                        if item.note.isEmpty, !keeper.note.isEmpty {
+                            item.note = keeper.note
+                        }
+                        context.delete(keeper)
+                        existingByDay[normalizedDay] = item
+                    } else {
+                        if keeper.note.isEmpty, !item.note.isEmpty {
+                            keeper.note = item.note
+                        }
+                        context.delete(item)
+                    }
+                } else {
+                    existingByDay[normalizedDay] = item
                 }
             }
-            target.checkIns = checkIns
+
+            let (dedupedImported, _) = BackupImportPlanner.deduplicateCheckIns(source.checkIns, calendar: calendar)
+            for (normalizedDay, sourceCheckIn) in dedupedImported.sorted(by: { $0.key < $1.key }) {
+                if let existing = existingByDay[normalizedDay] {
+                    if strategy == .overwriteWithImported {
+                        existing.isCompleted = sourceCheckIn.isCompleted
+                        existing.note = sourceCheckIn.note
+                        existing.createdAt = max(existing.createdAt, sourceCheckIn.createdAt)
+                    }
+                } else {
+                    let inserted = CheckInEntity(
+                        id: sourceCheckIn.id,
+                        day: normalizedDay,
+                        isCompleted: sourceCheckIn.isCompleted,
+                        note: sourceCheckIn.note,
+                        createdAt: sourceCheckIn.createdAt,
+                        habit: target
+                    )
+                    existingByDay[normalizedDay] = inserted
+                }
+            }
+
+            target.checkIns = existingByDay.values.sorted { $0.day < $1.day }
         }
 
         try context.save()
@@ -153,17 +179,17 @@ enum RemoteBackupService {
                         reminderWeekdayMask: habit.reminderWeekdayMask,
                         sortOrder: habit.sortOrder,
                         createdAt: habit.createdAt,
-                        checkIns: (habit.checkIns ?? [])
-                            .sorted { $0.day < $1.day }
-                            .map {
+                        checkIns: BackupImportPlanner.deduplicateCheckIns(
+                            (habit.checkIns ?? []).map {
                                 RemoteBackupCheckIn(
                                     id: $0.id,
-                                    day: $0.day,
+                                    day: Calendar.current.startOfDay(for: $0.day),
                                     isCompleted: $0.isCompleted,
                                     note: $0.note,
                                     createdAt: $0.createdAt
                                 )
                             }
+                        ).deduped.values.sorted { $0.day < $1.day }
                     )
                 }
         )
@@ -277,17 +303,13 @@ private enum RemoteBackupError: LocalizedError {
     }
 }
 
-private let jsonEncoder: JSONEncoder = {
-    let encoder = JSONEncoder()
-    encoder.dateEncodingStrategy = .iso8601
-    return encoder
-}()
+private var jsonEncoder: JSONEncoder {
+    WidgetJSONCodec.makeEncoder()
+}
 
-private let jsonDecoder: JSONDecoder = {
-    let decoder = JSONDecoder()
-    decoder.dateDecodingStrategy = .iso8601
-    return decoder
-}()
+private var jsonDecoder: JSONDecoder {
+    WidgetJSONCodec.makeDecoder()
+}
 
 private func remoteBackupLog(_ message: String) {
     print("[HabitBloomBackup] \(Date()) \(message)")

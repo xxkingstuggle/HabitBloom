@@ -25,6 +25,39 @@ public struct HabitStatsCalculator: Sendable {
         )
     }
 
+    public func monthCompletionRate(for habit: Habit, checkIns: [CheckIn], in monthDate: Date) -> Double {
+        let completedDays = completedDaySet(for: habit, checkIns: checkIns)
+        let monthDays = daysInMonth(containing: calendar.startOfDay(for: monthDate))
+        let expectedDays = monthDays.filter { habit.targetWeekdays.contains(calendar.component(.weekday, from: $0)) }
+        guard !expectedDays.isEmpty else { return 0 }
+        let completedExpectedDays = expectedDays.filter { completedDays.contains($0) }.count
+        return Double(completedExpectedDays) / Double(expectedDays.count)
+    }
+
+    public func bestStreak(for habit: Habit, checkIns: [CheckIn]) -> Int {
+        let completedDays = completedDaySet(for: habit, checkIns: checkIns)
+        guard let earliest = completedDays.min(), let latest = completedDays.max() else { return 0 }
+        var cursor = earliest
+        var current = 0
+        var best = 0
+        while cursor <= latest {
+            let weekday = calendar.component(.weekday, from: cursor)
+            if habit.targetWeekdays.contains(weekday) {
+                if completedDays.contains(cursor) {
+                    current += 1
+                    if current > best {
+                        best = current
+                    }
+                } else {
+                    current = 0
+                }
+            }
+            guard let next = calendar.date(byAdding: .day, value: 1, to: cursor) else { break }
+            cursor = next
+        }
+        return best
+    }
+
     public func widgetSummaries(habits: [Habit], checkIns: [CheckIn], today: Date = Date()) -> [WidgetHabitSummary] {
         let normalizedToday = calendar.startOfDay(for: today)
         let completedDaysByHabit = completedDaySetsByHabit(checkIns: checkIns)

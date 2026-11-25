@@ -76,7 +76,16 @@ struct ContentView: View {
             }
         }
         .task {
-            refreshDerivedStateAndWidgets()
+            let mergeResult = await StartupSyncCoordinator.shared.ensureInitialSync(using: modelContext)
+            today = Calendar.current.startOfDay(for: Date())
+            refreshDerivedStateAndWidgets(
+                delayMilliseconds: mergeResult.didChange ? 0 : 80,
+                backupDelayMilliseconds: mergeResult.didChange ? 2_500 : nil
+            )
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .habitBloomDidMergeWidgetCheckIns)) { _ in
+            today = Calendar.current.startOfDay(for: Date())
+            refreshDerivedState(habits: habits)
         }
         .onReceive(NotificationCenter.default.publisher(for: .NSCalendarDayChanged)) { _ in
             today = Calendar.current.startOfDay(for: Date())
@@ -84,7 +93,14 @@ struct ContentView: View {
         }
         .onChange(of: scenePhase) { _, phase in
             if phase == .active {
-                refreshDerivedStateAndWidgets()
+                Task {
+                    let mergeResult = await StartupSyncCoordinator.shared.performForegroundSync(using: modelContext)
+                    today = Calendar.current.startOfDay(for: Date())
+                    refreshDerivedStateAndWidgets(
+                        delayMilliseconds: mergeResult.didChange ? 0 : 80,
+                        backupDelayMilliseconds: mergeResult.didChange ? 2_500 : nil
+                    )
+                }
             } else if phase == .background {
                 refreshDerivedStateAndWidgets(delayMilliseconds: 0)
             }
@@ -153,14 +169,15 @@ struct ContentView: View {
             selectedHabit = habit
         }
         .contextMenu {
+            let currentIndex = habits.firstIndex(where: { $0.id == habit.id })
             Button("编辑") { selectedHabit = habit }
             Button("今日备注") {
                 noteDraft = NoteDraft(habit: habit, day: today, note: note(for: habit, on: today))
             }
             Button("上移") { move(habit, by: -1) }
-                .disabled(habit.sortOrder <= habits.map(\.sortOrder).min() ?? 0)
+                .disabled(currentIndex == nil || currentIndex == 0)
             Button("下移") { move(habit, by: 1) }
-                .disabled(habit.sortOrder >= habits.map(\.sortOrder).max() ?? 0)
+                .disabled(currentIndex == nil || currentIndex == habits.count - 1)
             Button("删除", role: .destructive) { delete(habit) }
         }
     }
@@ -180,14 +197,25 @@ struct ContentView: View {
     }
 
     private func toggleCheckIn(for habit: HabitEntity, on day: Date) {
-        let normalizedDay = Calendar.current.startOfDay(for: day)
+        let calendar = Calendar.current
+        let normalizedDay = calendar.startOfDay(for: day)
+        let now = Date()
         let willComplete: Bool
-        if let existing = (habit.checkIns ?? []).first(where: { $0.day == normalizedDay }) {
-            existing.isCompleted.toggle()
-            willComplete = existing.isCompleted
+        let sameDayRecords = (habit.checkIns ?? []).filter { calendar.startOfDay(for: $0.day) == normalizedDay }
+        if let keeper = sameDayRecords.max(by: { $0.createdAt < $1.createdAt }) {
+            keeper.day = normalizedDay
+            for duplicate in sameDayRecords where duplicate.id != keeper.id {
+                if keeper.note.isEmpty, !duplicate.note.isEmpty {
+                    keeper.note = duplicate.note
+                }
+                modelContext.delete(duplicate)
+            }
+            keeper.isCompleted.toggle()
+            keeper.createdAt = now
+            willComplete = keeper.isCompleted
         } else {
             var checkIns = habit.checkIns ?? []
-            checkIns.append(CheckInEntity(day: normalizedDay, habit: habit))
+            checkIns.append(CheckInEntity(day: normalizedDay, createdAt: now, habit: habit))
             habit.checkIns = checkIns
             willComplete = true
         }
@@ -206,7 +234,7 @@ struct ContentView: View {
             if willComplete {
                 Task { await ReminderScheduler.suppressTodayIfNeeded(for: ReminderScheduleSnapshot(habit: habit)) }
             } else {
-                Task { await ReminderScheduler.reschedule(for: ReminderScheduleSnapshot(habit: habit)) }
+                Task { await ReminderScheduler.restoreTodayIfNeeded(for: ReminderScheduleSnapshot(habit: habit)) }
             }
         } else {
             refreshDerivedStateAndWidgets(delayMilliseconds: 0, backupDelayMilliseconds: 2_500)
@@ -214,16 +242,26 @@ struct ContentView: View {
     }
 
     private func note(for habit: HabitEntity, on day: Date) -> String {
-        let normalizedDay = Calendar.current.startOfDay(for: day)
-        return (habit.checkIns ?? []).first(where: { $0.day == normalizedDay })?.note ?? ""
+        let calendar = Calendar.current
+        let normalizedDay = calendar.startOfDay(for: day)
+        return (habit.checkIns ?? [])
+            .filter { calendar.startOfDay(for: $0.day) == normalizedDay }
+            .max(by: { $0.createdAt < $1.createdAt })?
+            .note ?? ""
     }
 
     private func saveNote(_ note: String, for habit: HabitEntity, on day: Date) {
-        let normalizedDay = Calendar.current.startOfDay(for: day)
+        let calendar = Calendar.current
+        let normalizedDay = calendar.startOfDay(for: day)
         let trimmed = note.trimmingCharacters(in: .whitespacesAndNewlines)
 
-        if let existing = (habit.checkIns ?? []).first(where: { $0.day == normalizedDay }) {
-            existing.note = trimmed
+        let sameDay = (habit.checkIns ?? []).filter { calendar.startOfDay(for: $0.day) == normalizedDay }
+        if let keeper = sameDay.max(by: { $0.createdAt < $1.createdAt }) {
+            keeper.day = normalizedDay
+            for duplicate in sameDay where duplicate.id != keeper.id {
+                modelContext.delete(duplicate)
+            }
+            keeper.note = trimmed
         } else {
             var checkIns = habit.checkIns ?? []
             checkIns.append(CheckInEntity(day: normalizedDay, isCompleted: false, note: trimmed, habit: habit))
@@ -251,9 +289,12 @@ struct ContentView: View {
     }
 
     private func delete(_ habit: HabitEntity) {
+        let habitID = habit.id
+        let remainingHabits = habits.filter { $0.id != habitID }
         modelContext.delete(habit)
         guard saveModelContext(action: "delete habit") else { return }
-        refreshDerivedStateAndWidgets(delayMilliseconds: 0, backupDelayMilliseconds: 2_500)
+        ReminderScheduler.removeReminders(for: habitID)
+        refreshDerivedStateAndWidgets(habits: remainingHabits, delayMilliseconds: 0, backupDelayMilliseconds: 2_500)
     }
 
     private func refreshDerivedStateAndWidgets(

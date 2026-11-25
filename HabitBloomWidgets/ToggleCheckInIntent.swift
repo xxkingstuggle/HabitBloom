@@ -24,37 +24,59 @@ struct ToggleHabitCheckInIntent: AppIntent {
     func perform() async throws -> some IntentResult {
         guard let uuid = UUID(uuidString: habitID) else { return .result() }
 
-        let snapshot = await WidgetSnapshotStore.loadSnapshot(reason: "widget toggle")
-        guard let index = snapshot.habits.firstIndex(where: { $0.id == uuid }) else { return .result() }
+        let now = Date()
+        let calendar = Calendar.current
+        let today = calendar.startOfDay(for: now)
+        let todayKey = WidgetDayKey.string(for: now, calendar: calendar)
 
-        var habits = snapshot.habits
+        let loadedSnapshot = await WidgetSnapshotStore.loadSnapshot(reason: "widget toggle")
+        let rolledSnapshot = WidgetSnapshotRollover.rolledOver(loadedSnapshot, referenceDate: now, calendar: calendar)
+        guard let index = rolledSnapshot.habits.firstIndex(where: { $0.id == uuid }) else { return .result() }
+
+        var habits = rolledSnapshot.habits
         habits[index].isCompletedToday.toggle()
-        habits[index].updatedAt = Date()
+        habits[index].updatedAt = now
         let updated = habits[index]
 
-        var updatedSnapshot = snapshot
+        var updatedSnapshot = rolledSnapshot
         updatedSnapshot.habits = habits
-        updatedSnapshot.updatedAt = Date()
+        updatedSnapshot.updatedAt = now
+        updatedSnapshot.dayKey = todayKey
         updatedSnapshot.selectedHabitID = uuid
 
-        // 本地：改 App Group 快照 + 写入待合并队列。
+        // 本地：先按今日翻篇再更新 App Group 快照与扩展缓存，同时写入待合并队列。
         if var localHabits = loadLocalSnapshots() {
+            let localWrapper = WidgetRemoteSnapshot(
+                deviceKey: RemoteWidgetConfig.deviceKey,
+                updatedAt: localHabits.map(\.updatedAt).max() ?? now,
+                dayKey: nil,
+                selectedHabitID: uuid,
+                habits: localHabits
+            )
+            localHabits = WidgetSnapshotRollover.rolledOver(localWrapper, referenceDate: now, calendar: calendar).habits
             if let localIndex = localHabits.firstIndex(where: { $0.id == uuid }) {
                 localHabits[localIndex].isCompletedToday = updated.isCompletedToday
-                localHabits[localIndex].updatedAt = Date()
-                saveLocalSnapshots(localHabits)
+                localHabits[localIndex].updatedAt = now
             }
+            saveLocalSnapshots(localHabits)
         }
+        WidgetSnapshotStore.saveCachedSnapshot(updatedSnapshot)
         WidgetPendingCheckInStore.append(
             PendingWidgetCheckIn(
                 habitID: uuid,
                 isCompletedToday: updated.isCompletedToday,
-                day: Calendar.current.startOfDay(for: Date())
+                day: today,
+                updatedAt: now
             )
         )
 
         // 远程：更新 Worker 快照（侧载场景下小组件与主 App 的桥）。
-        await RemoteWidgetCheckInClient.postCheckIn(snapshot: updatedSnapshot)
+        await RemoteWidgetCheckInClient.postCheckIn(
+            habitID: uuid,
+            isCompletedToday: updated.isCompletedToday,
+            dayKey: todayKey,
+            snapshot: updatedSnapshot
+        )
 
         WidgetCenter.shared.reloadAllTimelines()
         return .result()
@@ -72,7 +94,12 @@ struct ToggleHabitCheckInIntent: AppIntent {
 }
 
 enum RemoteWidgetCheckInClient {
-    static func postCheckIn(snapshot: WidgetRemoteSnapshot) async {
+    static func postCheckIn(
+        habitID: UUID,
+        isCompletedToday: Bool,
+        dayKey: String,
+        snapshot: WidgetRemoteSnapshot
+    ) async {
         guard RemoteWidgetConfig.isReadable else { return }
         guard var components = URLComponents(string: RemoteWidgetConfig.baseURLString) else { return }
         components.path = "/v1/checkin/\(RemoteWidgetConfig.deviceKey)"
@@ -88,8 +115,9 @@ enum RemoteWidgetCheckInClient {
             }
             request.setValue("no-store", forHTTPHeaderField: "Cache-Control")
             let body = RemoteCheckInRequest(
-                habitID: snapshot.selectedHabitID ?? UUID(),
-                isCompletedToday: snapshot.habits.first(where: { $0.id == snapshot.selectedHabitID })?.isCompletedToday ?? false,
+                habitID: habitID,
+                isCompletedToday: isCompletedToday,
+                dayKey: dayKey,
                 snapshot: snapshot
             )
             request.httpBody = try widgetJSONEncoder.encode(body)

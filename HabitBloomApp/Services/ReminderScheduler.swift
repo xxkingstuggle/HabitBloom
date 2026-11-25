@@ -45,6 +45,48 @@ enum ReminderScheduler {
         markSuppressed(habitID: snapshot.id, on: Date())
     }
 
+    /// 取消今日打卡后清除今日抑止标记，并把当天剩余提醒重新排回系统通知队列。
+    static func restoreTodayIfNeeded(for snapshot: ReminderScheduleSnapshot) async {
+        clearSuppressed(habitID: snapshot.id)
+        await reschedule(for: snapshot)
+    }
+
+    /// 删除目标时立刻撤销所有工作日提醒并清理抑止状态，避免孤儿通知残留。
+    static func removeReminders(for habitID: UUID) {
+        let center = UNUserNotificationCenter.current()
+        let identifiers = (1...7).map { reminderIdentifier(habitID: habitID, weekday: $0) }
+        center.removePendingNotificationRequests(withIdentifiers: identifiers)
+        clearSuppressed(habitID: habitID)
+    }
+
+    /// 启动或恢复备份后巡检系统待触发队列，清理已删除目标遗留的孤儿通知与抑止键。
+    static func pruneOrphanedReminders(validHabitIDs: Set<UUID>) async {
+        let center = UNUserNotificationCenter.current()
+        let pendingRequests = await center.pendingNotificationRequests()
+        let prefix = "habit-reminder-"
+        var orphanedIdentifiers: [String] = []
+
+        for request in pendingRequests where request.identifier.hasPrefix(prefix) {
+            let remainder = String(request.identifier.dropFirst(prefix.count))
+            guard let lastDash = remainder.lastIndex(of: "-") else { continue }
+            let uuidString = String(remainder[..<lastDash])
+            guard let uuid = UUID(uuidString: uuidString), !validHabitIDs.contains(uuid) else { continue }
+            orphanedIdentifiers.append(request.identifier)
+        }
+
+        if !orphanedIdentifiers.isEmpty {
+            center.removePendingNotificationRequests(withIdentifiers: orphanedIdentifiers)
+        }
+
+        var suppressed = UserDefaults.standard.dictionary(forKey: suppressedTodayKey) as? [String: Double] ?? [:]
+        let validKeySet = Set(validHabitIDs.map(\.uuidString))
+        let originalCount = suppressed.count
+        suppressed = suppressed.filter { validKeySet.contains($0.key) }
+        if suppressed.count != originalCount {
+            UserDefaults.standard.set(suppressed, forKey: suppressedTodayKey)
+        }
+    }
+
     /// 应用启动时调用：把所有「昨天及更早被抑止」的习惯提醒重新排回去。
     /// 只接收 Sendable 快照，不跨隔离域传 SwiftData 模型。
     static func restoreSuppressedReminders(snapshots: [ReminderScheduleSnapshot]) async {
@@ -72,6 +114,13 @@ enum ReminderScheduler {
         var suppressed = UserDefaults.standard.dictionary(forKey: suppressedTodayKey) as? [String: Double] ?? [:]
         suppressed[habitID.uuidString] = Calendar.current.startOfDay(for: day).timeIntervalSince1970
         UserDefaults.standard.set(suppressed, forKey: suppressedTodayKey)
+    }
+
+    private static func clearSuppressed(habitID: UUID) {
+        var suppressed = UserDefaults.standard.dictionary(forKey: suppressedTodayKey) as? [String: Double] ?? [:]
+        if suppressed.removeValue(forKey: habitID.uuidString) != nil {
+            UserDefaults.standard.set(suppressed, forKey: suppressedTodayKey)
+        }
     }
 
     private static func reminderIdentifier(habitID: UUID, weekday: Int) -> String {
