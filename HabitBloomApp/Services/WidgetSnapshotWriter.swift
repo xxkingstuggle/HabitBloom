@@ -112,7 +112,7 @@ private enum WidgetSnapshotFactory {
     /// 远程快照：图片卡片只带指纹文件名（服务端去重），不再每次全量上传图片字节。
     static func makeRemoteSnapshot(inputs: [WidgetHabitSnapshotInput], selectedHabitID: UUID?) -> WidgetRemoteSnapshot {
         let now = Date()
-        WidgetRemoteSnapshot(
+        return WidgetRemoteSnapshot(
             deviceKey: RemoteWidgetConfig.deviceKey,
             updatedAt: now,
             dayKey: WidgetDayKey.string(for: now),

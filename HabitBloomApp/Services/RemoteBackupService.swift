@@ -159,39 +159,43 @@ enum RemoteBackupService {
 
     @MainActor
     fileprivate static func makeArchive(habits: [HabitEntity]) -> RemoteBackupArchive {
-        RemoteBackupArchive(
+        let calendar = Calendar.current
+        let sortedHabits = habits.sorted {
+            $0.sortOrder == $1.sortOrder ? $0.createdAt < $1.createdAt : $0.sortOrder < $1.sortOrder
+        }
+        let backupHabits: [RemoteBackupHabit] = sortedHabits.map { habit in
+            let rawCheckIns: [RemoteBackupCheckIn] = (habit.checkIns ?? []).map { item in
+                RemoteBackupCheckIn(
+                    id: item.id,
+                    day: calendar.startOfDay(for: item.day),
+                    isCompleted: item.isCompleted,
+                    note: item.note,
+                    createdAt: item.createdAt
+                )
+            }
+            let deduplicated = BackupImportPlanner.deduplicateCheckIns(rawCheckIns, calendar: calendar).deduplicated
+            let sortedCheckIns = deduplicated.values.sorted { $0.day < $1.day }
+            return RemoteBackupHabit(
+                id: habit.id,
+                name: habit.name,
+                icon: habit.icon,
+                colorName: habit.colorName,
+                cardStyle: habit.cardStyle,
+                targetWeekdayMask: habit.targetWeekdayMask,
+                reminderEnabled: habit.reminderEnabled,
+                reminderHour: habit.reminderHour,
+                reminderMinute: habit.reminderMinute,
+                reminderWeekdayMask: habit.reminderWeekdayMask,
+                sortOrder: habit.sortOrder,
+                createdAt: habit.createdAt,
+                checkIns: sortedCheckIns
+            )
+        }
+        return RemoteBackupArchive(
             version: 1,
             deviceKey: RemoteWidgetConfig.deviceKey,
             exportedAt: Date(),
-            habits: habits
-                .sorted { $0.sortOrder == $1.sortOrder ? $0.createdAt < $1.createdAt : $0.sortOrder < $1.sortOrder }
-                .map { habit in
-                    RemoteBackupHabit(
-                        id: habit.id,
-                        name: habit.name,
-                        icon: habit.icon,
-                        colorName: habit.colorName,
-                        cardStyle: habit.cardStyle,
-                        targetWeekdayMask: habit.targetWeekdayMask,
-                        reminderEnabled: habit.reminderEnabled,
-                        reminderHour: habit.reminderHour,
-                        reminderMinute: habit.reminderMinute,
-                        reminderWeekdayMask: habit.reminderWeekdayMask,
-                        sortOrder: habit.sortOrder,
-                        createdAt: habit.createdAt,
-                        checkIns: BackupImportPlanner.deduplicateCheckIns(
-                            (habit.checkIns ?? []).map {
-                                RemoteBackupCheckIn(
-                                    id: $0.id,
-                                    day: Calendar.current.startOfDay(for: $0.day),
-                                    isCompleted: $0.isCompleted,
-                                    note: $0.note,
-                                    createdAt: $0.createdAt
-                                )
-                            }
-                        ).deduped.values.sorted { $0.day < $1.day }
-                    )
-                }
+            habits: backupHabits
         )
     }
 }
