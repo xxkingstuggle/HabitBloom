@@ -44,7 +44,9 @@ enum WidgetSnapshotWriter {
         let inputs = snapshotInputs(
             habits: habits,
             statsByHabitID: statsByHabitID,
-            completedTodayByHabitID: completedTodayByHabitID
+            completedTodayByHabitID: completedTodayByHabitID,
+            updatedHabitID: habitID,
+            actionTimestamp: Date()
         )
         RemoteBackupService.scheduleUpload(habits: habits, delayMilliseconds: 5_000)
 
@@ -61,8 +63,12 @@ enum WidgetSnapshotWriter {
     private static func snapshotInputs(
         habits: [HabitEntity],
         statsByHabitID: [UUID: HabitStatsViewModel],
-        completedTodayByHabitID: [UUID: Bool]
+        completedTodayByHabitID: [UUID: Bool],
+        updatedHabitID: UUID? = nil,
+        actionTimestamp: Date = Date()
     ) -> [WidgetHabitSnapshotInput] {
+        let calendar = Calendar.current
+        let today = calendar.startOfDay(for: actionTimestamp)
         let sortedHabits = habits.sorted {
             $0.sortOrder == $1.sortOrder ? $0.createdAt < $1.createdAt : $0.sortOrder < $1.sortOrder
         }
@@ -75,6 +81,13 @@ enum WidgetSnapshotWriter {
                 let stats = statsByHabitID[habit.id]
                     ?? derivedState?.statsByHabitID[habit.id]
                     ?? HabitStatsService.stats(for: habit)
+                let latestTodayUpdatedAt = (habit.checkIns ?? [])
+                    .filter { calendar.isDate($0.day, inSameDayAs: today) }
+                    .map(\.createdAt)
+                    .max() ?? habit.createdAt
+                let effectiveUpdatedAt = habit.id == updatedHabitID
+                    ? max(latestTodayUpdatedAt, actionTimestamp)
+                    : latestTodayUpdatedAt
                 return WidgetHabitSnapshotInput(
                     id: habit.id,
                     name: habit.name,
@@ -88,7 +101,7 @@ enum WidgetSnapshotWriter {
                         ?? derivedState?.completedTodayByHabitID[habit.id]
                         ?? HabitStatsService.isCompletedToday(habit),
                     imageData: habit.cardStyle == HabitCardKind.image.rawValue ? habit.imageData : nil,
-                    updatedAt: Date()
+                    updatedAt: effectiveUpdatedAt
                 )
             }
     }

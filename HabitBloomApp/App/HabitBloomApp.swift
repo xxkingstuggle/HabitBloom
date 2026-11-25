@@ -21,7 +21,7 @@ struct HabitBloomApp: App {
                 }
         }
         .modelContainer(HabitModelContainer.shared)
-        #if os(macOS)
+        #if os(macOS) || targetEnvironment(macCatalyst)
         .defaultSize(width: 1080, height: 760)
         #endif
         .commands {

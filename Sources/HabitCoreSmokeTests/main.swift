@@ -221,6 +221,42 @@ let appNewerReconciled = WidgetCheckInReconciler.reconcile(
 )
 require(appNewerReconciled.contains(where: { $0.habitID == habitTwoID }) == false, "newer local app state must not be overwritten by older widget state")
 
+let untouchedHabitID = UUID()
+let untouchedHabitRemoteSnapshot = WidgetRemoteSnapshot(
+    deviceKey: "device-test-1234",
+    updatedAt: timestamp(2026, 11, 26, 11, 15, 0),
+    dayKey: "2026-11-26",
+    selectedHabitID: untouchedHabitID,
+    habits: [
+        WidgetHabitSnapshot(
+            id: untouchedHabitID,
+            name: "站立拉伸",
+            icon: "figure.cooldown",
+            colorName: "teal",
+            cardStyle: "soft",
+            streakDays: 3,
+            totalDays: 12,
+            completionRate: 0.6,
+            isCompletedToday: true,
+            updatedAt: timestamp(2026, 11, 26, 10, 50, 0)
+        )
+    ]
+)
+let untouchedHabitReconciled = WidgetCheckInReconciler.reconcile(
+    localPending: [],
+    remoteSnapshot: untouchedHabitRemoteSnapshot,
+    existingTodayStateByHabitID: [
+        untouchedHabitID: LocalTodayCheckInState(isCompleted: false, updatedAt: timestamp(2026, 11, 20, 8, 0, 0))
+    ],
+    referenceDate: arbitrationDay,
+    calendar: calendar
+)
+require(
+    untouchedHabitReconciled.first(where: { $0.habitID == untouchedHabitID })?.isCompleted == true
+        && untouchedHabitReconciled.first(where: { $0.habitID == untouchedHabitID })?.source == .remoteSnapshot,
+    "untouched habit with older updatedAt must not block newer remote widget check-in"
+)
+
 let existingHabit = RemoteBackupHabit(
     id: habitOneID,
     name: "晨跑",

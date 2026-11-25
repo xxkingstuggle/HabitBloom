@@ -28,7 +28,6 @@ struct ContentView: View {
                             } label: {
                                 Label("新建目标", systemImage: "plus")
                             }
-                            .keyboardShortcut("n", modifiers: .command)
                             .accessibilityLabel("新建目标")
                         }
                     }
