@@ -306,6 +306,8 @@ struct SingleHabitWidgetView: View {
     @Environment(\.widgetFamily) private var family
     @Environment(\.widgetRenderingMode) private var renderingMode
     @Environment(\.showsWidgetContainerBackground) private var showsContainerBackground
+    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
+    @Environment(\.colorScheme) private var colorScheme
 
     private var habit: WidgetHabitSnapshot { entry.selectedHabit }
     private var usesImagePresentation: Bool {
@@ -317,9 +319,27 @@ struct SingleHabitWidgetView: View {
     var body: some View {
         Group {
             if family == .systemMedium {
-                VStack(alignment: .leading, spacing: 14) {
+                VStack(alignment: .leading, spacing: 12) {
                     HStack(alignment: .top) {
                         WidgetIcon(systemName: habit.icon, colorName: habit.colorName, isOnImage: usesImagePresentation)
+                        Spacer(minLength: 8)
+                        Text(habit.isCompletedToday ? "今日已打卡" : "今日待完成")
+                            .font(.caption2.weight(.semibold))
+                            .foregroundStyle(
+                                usesImagePresentation
+                                    ? .white
+                                    : (habit.isCompletedToday ? color(for: habit.colorName) : .secondary)
+                            )
+                            .padding(.horizontal, 9)
+                            .padding(.vertical, 4)
+                            .background(
+                                Capsule(style: .continuous)
+                                    .fill(widgetSurfaceFill(isOnImage: usesImagePresentation, colorScheme: colorScheme, reduceTransparency: reduceTransparency))
+                            )
+                            .overlay(
+                                Capsule(style: .continuous)
+                                    .strokeBorder(widgetSurfaceStroke(isOnImage: usesImagePresentation, colorScheme: colorScheme, reduceTransparency: reduceTransparency), lineWidth: 0.8)
+                            )
                         Spacer(minLength: 10)
                         WidgetCheckInButton(habit: habit, isOnImage: usesImagePresentation, size: 26)
                     }
@@ -353,55 +373,97 @@ struct SingleHabitWidgetView: View {
 }
 
 struct MultiHabitWidgetView: View {
+    @Environment(\.widgetFamily) private var family
+    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
+    @Environment(\.colorScheme) private var colorScheme
     let entry: HabitTimelineEntry
 
+    private var maxVisibleRows: Int {
+        family == .systemLarge ? 6 : 3
+    }
+
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        let visibleHabits = Array(entry.habits.prefix(maxVisibleRows))
+        let hiddenCount = max(0, entry.habits.count - visibleHabits.count)
+
+        VStack(alignment: .leading, spacing: family == .systemLarge ? 8 : 6) {
             HStack(alignment: .firstTextBaseline) {
                 Text("今日打卡")
                     .font(.headline.weight(.bold))
                 Spacer()
                 Text("\(entry.habits.filter(\.isCompletedToday).count)/\(entry.habits.count)")
                     .font(.subheadline.weight(.bold))
+                    .monospacedDigit()
                     .foregroundStyle(.secondary)
             }
 
-            ForEach(entry.habits.prefix(5)) { habit in
-                HStack(spacing: 10) {
-                    WidgetIcon(systemName: habit.icon, colorName: habit.colorName, size: 28, imageSize: 14)
+            ForEach(visibleHabits) { habit in
+                HStack(spacing: 9) {
+                    WidgetIcon(systemName: habit.icon, colorName: habit.colorName, size: family == .systemLarge ? 28 : 24, imageSize: family == .systemLarge ? 14 : 12)
                     VStack(alignment: .leading, spacing: 1) {
                         Text(habit.name)
+                            .font(family == .systemLarge ? .subheadline.weight(.semibold) : .footnote.weight(.semibold))
                             .lineLimit(1)
-                        Text(habit.isCompletedToday ? "今日已完成" : "今日未完成")
-                            .font(.caption2.weight(.medium))
-                            .foregroundStyle(.secondary)
+                        if family == .systemLarge {
+                            Text(habit.isCompletedToday ? "今日已完成" : "待打卡")
+                                .font(.caption2.weight(.medium))
+                                .foregroundStyle(.secondary)
+                        }
                     }
-                    Spacer()
+                    Spacer(minLength: 6)
                     HStack(alignment: .firstTextBaseline, spacing: 1) {
                         Text("\(habit.streakDays)")
-                            .font(.headline.weight(.bold))
+                            .font(family == .systemLarge ? .headline.weight(.bold) : .subheadline.weight(.bold))
                         Text("天")
                             .font(.caption2.weight(.semibold))
                             .foregroundStyle(.secondary)
                     }
                     .monospacedDigit()
-                    WidgetCheckInButton(habit: habit, size: 20)
+                    WidgetCheckInButton(habit: habit, size: family == .systemLarge ? 20 : 18)
                 }
                 .font(.subheadline)
-                .padding(.vertical, 5)
-                .padding(.horizontal, 7)
-                .background(.white.opacity(0.18), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                .padding(.vertical, family == .systemLarge ? 5 : 4)
+                .padding(.horizontal, 8)
+                .background(
+                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                        .fill(widgetSurfaceFill(isOnImage: false, colorScheme: colorScheme, reduceTransparency: reduceTransparency))
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                        .strokeBorder(widgetSurfaceStroke(isOnImage: false, colorScheme: colorScheme, reduceTransparency: reduceTransparency), lineWidth: 0.8)
+                )
             }
+
+            if hiddenCount > 0 {
+                Text("另有 \(hiddenCount) 项目标，打开 App 查看全部")
+                    .font(.caption2.weight(.medium))
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+            }
+
+            Spacer(minLength: 0)
         }
         .padding()
     }
 }
 
 struct SummaryHabitWidgetView: View {
+    @Environment(\.widgetFamily) private var family
+    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
+    @Environment(\.colorScheme) private var colorScheme
     let entry: HabitTimelineEntry
 
     private var completedCount: Int {
         entry.habits.filter(\.isCompletedToday).count
+    }
+
+    private var completionPercentage: Int {
+        guard !entry.habits.isEmpty else { return 0 }
+        return Int((Double(completedCount) / Double(entry.habits.count) * 100).rounded())
+    }
+
+    private var bestStreak: Int {
+        entry.habits.map(\.streakDays).max() ?? 0
     }
 
     var body: some View {
@@ -410,30 +472,66 @@ struct SummaryHabitWidgetView: View {
                 VStack(alignment: .leading, spacing: 4) {
                     Text("打卡概览")
                         .font(.headline.weight(.bold))
-                    Text("今日已完成")
+                    Text(family == .systemMedium ? "今日完成率 \(completionPercentage)%" : "今日已完成")
                         .font(.caption.weight(.semibold))
                         .foregroundStyle(.secondary)
                 }
                 Spacer()
                 HStack(alignment: .firstTextBaseline, spacing: 2) {
                     Text("\(completedCount)")
-                        .font(.system(size: 38, weight: .bold, design: .rounded))
+                        .font(.system(size: family == .systemMedium ? 40 : 34, weight: .bold, design: .rounded))
                     Text("/\(entry.habits.count)")
                         .font(.headline.weight(.bold))
                         .foregroundStyle(.secondary)
                 }
                 .monospacedDigit()
             }
-            Spacer()
+
+            if family == .systemMedium {
+                HStack(spacing: 8) {
+                    summaryBadge(title: "最好连续", value: "\(bestStreak) 天", icon: "flame.fill", tint: .orange)
+                    summaryBadge(title: "剩余目标", value: "\(max(0, entry.habits.count - completedCount)) 项", icon: "circle.dotted", tint: .teal)
+                }
+            }
+
+            Spacer(minLength: 0)
+
             HStack(spacing: 5) {
-                ForEach(entry.habits.prefix(8)) { habit in
+                ForEach(entry.habits.prefix(family == .systemMedium ? 10 : 6)) { habit in
                     Capsule()
-                        .fill(habit.isCompletedToday ? color(for: habit.colorName) : Color.secondary.opacity(0.22))
+                        .fill(habit.isCompletedToday ? color(for: habit.colorName) : Color.primary.opacity(colorScheme == .dark ? 0.20 : 0.14))
                         .frame(height: 8)
                 }
             }
         }
         .padding()
+    }
+
+    private func summaryBadge(title: String, value: String, icon: String, tint: Color) -> some View {
+        HStack(spacing: 6) {
+            Image(systemName: icon)
+                .font(.caption.weight(.bold))
+                .foregroundStyle(tint)
+            VStack(alignment: .leading, spacing: 1) {
+                Text(title)
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                Text(value)
+                    .font(.caption.weight(.bold))
+                    .monospacedDigit()
+            }
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, 9)
+        .padding(.vertical, 6)
+        .background(
+            RoundedRectangle(cornerRadius: 11, style: .continuous)
+                .fill(widgetSurfaceFill(isOnImage: false, colorScheme: colorScheme, reduceTransparency: reduceTransparency))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 11, style: .continuous)
+                .strokeBorder(widgetSurfaceStroke(isOnImage: false, colorScheme: colorScheme, reduceTransparency: reduceTransparency), lineWidth: 0.8)
+        )
     }
 }
 
@@ -446,6 +544,8 @@ struct WidgetBackground: View {
 }
 
 private struct WidgetCheckInButton: View {
+    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
+    @Environment(\.colorScheme) private var colorScheme
     let habit: WidgetHabitSnapshot
     var isOnImage = false
     var size: CGFloat = 22
@@ -457,7 +557,11 @@ private struct WidgetCheckInButton: View {
                 .foregroundStyle(habit.isCompletedToday ? (isOnImage ? .white : .green) : (isOnImage ? .white.opacity(0.86) : .secondary))
                 .symbolRenderingMode(.hierarchical)
                 .frame(width: size + 14, height: size + 14)
-                .background((isOnImage ? Color.black.opacity(0.26) : Color.white.opacity(0.30)), in: Circle())
+                .background(widgetSurfaceFill(isOnImage: isOnImage, colorScheme: colorScheme, reduceTransparency: reduceTransparency), in: Circle())
+                .overlay(
+                    Circle()
+                        .strokeBorder(widgetSurfaceStroke(isOnImage: isOnImage, colorScheme: colorScheme, reduceTransparency: reduceTransparency), lineWidth: 0.8)
+                )
         }
         .buttonStyle(.plain)
         .accessibilityLabel(habit.isCompletedToday ? "取消今日打卡" : "完成今日打卡")
@@ -485,6 +589,8 @@ private struct WidgetTextBlock: View {
 }
 
 private struct WidgetIcon: View {
+    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
+    @Environment(\.colorScheme) private var colorScheme
     let systemName: String
     let colorName: String
     var size: CGFloat = 36
@@ -496,7 +602,11 @@ private struct WidgetIcon: View {
             .foregroundStyle(isOnImage ? .white : color(for: colorName))
             .symbolRenderingMode(.hierarchical)
             .frame(width: size, height: size)
-            .background((isOnImage ? Color.black.opacity(0.26) : Color.white.opacity(0.28)), in: Circle())
+            .background(widgetSurfaceFill(isOnImage: isOnImage, colorScheme: colorScheme, reduceTransparency: reduceTransparency), in: Circle())
+            .overlay(
+                Circle()
+                    .strokeBorder(widgetSurfaceStroke(isOnImage: isOnImage, colorScheme: colorScheme, reduceTransparency: reduceTransparency), lineWidth: 0.8)
+            )
     }
 }
 
@@ -562,24 +672,35 @@ private struct WidgetProgressBar: View {
 }
 
 private struct WidgetStickerBackground: View {
+    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
+    @Environment(\.colorScheme) private var colorScheme
     let snapshot: WidgetHabitSnapshot
 
     var body: some View {
         switch snapshot.cardStyle {
         case "glass":
-            Rectangle()
-                .fill(.thinMaterial)
-                .overlay(
-                    LinearGradient(
-                        colors: [Color.white.opacity(0.22), color(for: snapshot.colorName).opacity(0.14)],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
+            if reduceTransparency {
+                Rectangle()
+                    .fill(widgetSecondarySystemBackgroundColor)
+                    .overlay(color(for: snapshot.colorName).opacity(colorScheme == .dark ? 0.18 : 0.12))
+            } else {
+                Rectangle()
+                    .fill(.thinMaterial)
+                    .overlay(
+                        LinearGradient(
+                            colors: [
+                                Color.white.opacity(colorScheme == .dark ? 0.10 : 0.22),
+                                color(for: snapshot.colorName).opacity(colorScheme == .dark ? 0.22 : 0.14)
+                            ],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
                     )
-                )
+            }
         case "minimal":
             Rectangle()
                 .fill(widgetSecondarySystemBackgroundColor)
-                .overlay(color(for: snapshot.colorName).opacity(0.16), alignment: .leading)
+                .overlay(color(for: snapshot.colorName).opacity(reduceTransparency ? 0.24 : 0.16), alignment: .leading)
         case "image":
             if let image = widgetImage(for: snapshot) {
                 GeometryReader { proxy in
@@ -588,10 +709,14 @@ private struct WidgetStickerBackground: View {
                         .frame(width: proxy.size.width, height: proxy.size.height)
                         .clipped()
                         .saturation(0.86)
-                        .overlay(.black.opacity(0.20))
+                        .overlay(.black.opacity(reduceTransparency ? 0.34 : 0.20))
                         .overlay(
                             LinearGradient(
-                                colors: [.black.opacity(0.36), .black.opacity(0.14), .black.opacity(0.42)],
+                                colors: [
+                                    .black.opacity(reduceTransparency ? 0.54 : 0.36),
+                                    .black.opacity(reduceTransparency ? 0.30 : 0.14),
+                                    .black.opacity(reduceTransparency ? 0.62 : 0.42)
+                                ],
                                 startPoint: .top,
                                 endPoint: .bottom
                             )
@@ -606,15 +731,23 @@ private struct WidgetStickerBackground: View {
     }
 
     private var softBackground: some View {
-        LinearGradient(
-            colors: [
-                color(for: snapshot.colorName).opacity(0.20),
-                color(for: snapshot.colorName).opacity(0.08),
-                widgetSystemBackgroundColor.opacity(0.92)
-            ],
-            startPoint: .topLeading,
-            endPoint: .bottomTrailing
-        )
+        Group {
+            if reduceTransparency {
+                Rectangle()
+                    .fill(widgetSecondarySystemBackgroundColor)
+                    .overlay(color(for: snapshot.colorName).opacity(colorScheme == .dark ? 0.18 : 0.12))
+            } else {
+                LinearGradient(
+                    colors: [
+                        color(for: snapshot.colorName).opacity(colorScheme == .dark ? 0.26 : 0.20),
+                        color(for: snapshot.colorName).opacity(colorScheme == .dark ? 0.12 : 0.08),
+                        widgetSystemBackgroundColor.opacity(0.94)
+                    ],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+            }
+        }
     }
 }
 
@@ -739,6 +872,26 @@ private var widgetSecondarySystemBackgroundColor: Color {
 #else
     Color(uiColor: .secondarySystemBackground)
 #endif
+}
+
+private func widgetSurfaceFill(isOnImage: Bool, colorScheme: ColorScheme, reduceTransparency: Bool) -> Color {
+    if isOnImage {
+        return reduceTransparency ? Color.black.opacity(0.58) : Color.black.opacity(0.30)
+    }
+    if reduceTransparency {
+        return colorScheme == .dark ? Color.white.opacity(0.14) : widgetSystemBackgroundColor
+    }
+    return colorScheme == .dark ? Color.white.opacity(0.12) : Color.white.opacity(0.62)
+}
+
+private func widgetSurfaceStroke(isOnImage: Bool, colorScheme: ColorScheme, reduceTransparency: Bool) -> Color {
+    if isOnImage {
+        return Color.white.opacity(reduceTransparency ? 0.45 : 0.24)
+    }
+    if reduceTransparency {
+        return colorScheme == .dark ? Color.white.opacity(0.26) : Color.black.opacity(0.14)
+    }
+    return colorScheme == .dark ? Color.white.opacity(0.16) : Color.white.opacity(0.52)
 }
 
 extension String {

@@ -2,6 +2,11 @@ import SwiftData
 import SwiftUI
 import WidgetKit
 
+extension Notification.Name {
+    static let habitBloomRequestNewHabit = Notification.Name("habitBloomRequestNewHabit")
+    static let habitBloomSelectTab = Notification.Name("habitBloomSelectTab")
+}
+
 @main
 struct HabitBloomApp: App {
     @AppStorage("appTheme") private var appTheme: AppTheme = .system
@@ -16,6 +21,33 @@ struct HabitBloomApp: App {
                 }
         }
         .modelContainer(HabitModelContainer.shared)
+        #if os(macOS)
+        .defaultSize(width: 1080, height: 760)
+        #endif
+        .commands {
+            CommandGroup(replacing: .newItem) {
+                Button("新建目标") {
+                    NotificationCenter.default.post(name: .habitBloomRequestNewHabit, object: nil)
+                }
+                .keyboardShortcut("n", modifiers: .command)
+            }
+            CommandMenu("视图") {
+                Button("首页") {
+                    NotificationCenter.default.post(name: .habitBloomSelectTab, object: 0)
+                }
+                .keyboardShortcut("1", modifiers: .command)
+
+                Button("统计") {
+                    NotificationCenter.default.post(name: .habitBloomSelectTab, object: 1)
+                }
+                .keyboardShortcut("2", modifiers: .command)
+
+                Button("设置") {
+                    NotificationCenter.default.post(name: .habitBloomSelectTab, object: 2)
+                }
+                .keyboardShortcut("3", modifiers: .command)
+            }
+        }
     }
 }
 

@@ -9,6 +9,9 @@ struct MonthCalendarView: View {
     let onToggleDay: (Date) -> Void
     let onEditNote: (Date) -> Void
 
+    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
+    @Environment(\.colorScheme) private var colorScheme
+
     private let calendar = Calendar.current
     private let weekdaySymbols = ["日", "一", "二", "三", "四", "五", "六"]
 
@@ -40,39 +43,59 @@ struct MonthCalendarView: View {
                 let isCompleted = completedDays.contains(day)
                 let hasNote = notedDays.contains(day)
                 let isFuture = day > today
+                let cellBackground: Color = {
+                    if isCompleted {
+                        return accent
+                    }
+                    if isFuture {
+                        return Color.primary.opacity(colorScheme == .dark ? 0.03 : 0.025)
+                    }
+                    if reduceTransparency {
+                        return colorScheme == .dark ? Color.appSurfaceElevated : Color.appBackgroundPrimary
+                    }
+                    return Color.primary.opacity(colorScheme == .dark ? 0.11 : 0.06)
+                }()
 
                 Button {
+                    guard !isFuture else { return }
                     onToggleDay(day)
                 } label: {
                     VStack(spacing: 1) {
                         Text("\(calendar.component(.day, from: day))")
                             .font(.system(size: 12, weight: isCompleted ? .bold : .medium, design: .rounded))
+                            .monospacedDigit()
                         Circle()
                             .fill(hasNote ? (isCompleted ? Color.white.opacity(0.95) : accent) : .clear)
                             .frame(width: 3, height: 3)
                     }
                     .frame(maxWidth: .infinity)
                     .frame(height: 30)
-                    .foregroundStyle(isCompleted ? .white : (isFuture ? Color.secondary.opacity(0.45) : .primary))
+                    .foregroundStyle(isCompleted ? .white : (isFuture ? Color.secondary.opacity(0.38) : .primary))
                     .background(
                         RoundedRectangle(cornerRadius: 8, style: .continuous)
-                            .fill(isCompleted ? accent : Color.primary.opacity(0.05))
+                            .fill(cellBackground)
                     )
                     .overlay(
                         RoundedRectangle(cornerRadius: 8, style: .continuous)
-                            .strokeBorder(day == today ? accent : .clear, lineWidth: 1.4)
+                            .strokeBorder(
+                                day == today ? accent : (reduceTransparency && !isFuture && !isCompleted ? Color.primary.opacity(0.18) : .clear),
+                                lineWidth: day == today ? 1.5 : 0.8
+                            )
                     )
                 }
                 .buttonStyle(.plain)
+                .disabled(isFuture)
                 .contextMenu {
-                    Button(isCompleted ? "取消这一天打卡" : "补这一天打卡") {
-                        onToggleDay(day)
-                    }
-                    Button(hasNote ? "编辑备注" : "添加备注") {
-                        onEditNote(day)
+                    if !isFuture {
+                        Button(isCompleted ? "取消这一天打卡" : "补这一天打卡") {
+                            onToggleDay(day)
+                        }
+                        Button(hasNote ? "编辑备注" : "添加备注") {
+                            onEditNote(day)
+                        }
                     }
                 }
-                .accessibilityLabel("\(day.formatted(date: .numeric, time: .omitted)) \(isCompleted ? "已打卡" : "未打卡")")
+                .accessibilityLabel("\(day.formatted(date: .numeric, time: .omitted)) \(isFuture ? "未来日期，不可打卡" : (isCompleted ? "已打卡" : "未打卡"))")
             } else {
                 Color.clear
                     .frame(maxWidth: .infinity)

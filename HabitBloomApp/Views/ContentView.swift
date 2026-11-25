@@ -4,6 +4,9 @@ import SwiftUI
 struct ContentView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.scenePhase) private var scenePhase
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Query(sort: [SortDescriptor(\HabitEntity.sortOrder), SortDescriptor(\HabitEntity.createdAt)]) private var habits: [HabitEntity]
     @State private var showingEditor = false
     @State private var selectedHabit: HabitEntity?
@@ -23,8 +26,9 @@ struct ContentView: View {
                             Button {
                                 showingEditor = true
                             } label: {
-                                Image(systemName: "plus")
+                                Label("新建目标", systemImage: "plus")
                             }
+                            .keyboardShortcut("n", modifiers: .command)
                             .accessibilityLabel("新建目标")
                         }
                     }
@@ -87,6 +91,16 @@ struct ContentView: View {
             today = Calendar.current.startOfDay(for: Date())
             refreshDerivedState(habits: habits)
         }
+        .onReceive(NotificationCenter.default.publisher(for: .habitBloomRequestNewHabit)) { _ in
+            selectedTab = .home
+            showingEditor = true
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .habitBloomSelectTab)) { notification in
+            if let rawValue = notification.object as? Int,
+               let target = MainTab(rawValue: rawValue) {
+                selectedTab = target
+            }
+        }
         .onReceive(NotificationCenter.default.publisher(for: .NSCalendarDayChanged)) { _ in
             today = Calendar.current.startOfDay(for: Date())
             refreshDerivedStateAndWidgets()
@@ -107,26 +121,43 @@ struct ContentView: View {
         }
     }
 
+    private var cardGridColumns: [GridItem] {
+        if horizontalSizeClass == .regular {
+            return [
+                GridItem(.flexible(minimum: 280), spacing: 16),
+                GridItem(.flexible(minimum: 280), spacing: 16)
+            ]
+        }
+        return [GridItem(.flexible())]
+    }
+
     @ViewBuilder
     private var homeContent: some View {
         if habits.isEmpty {
-            EmptyHabitView {
-                showingEditor = true
-            }
+            EmptyHabitView(
+                onCreateCustom: { showingEditor = true },
+                onCreateTemplate: createHabit(from:)
+            )
         } else {
             let dueToday = habitsDueToday
             let restingToday = habitsRestingToday
+            let completedDueToday = dueToday.filter { completedTodayByHabitID[$0.id] == true }.count
 
             ScrollView {
-                LazyVStack(spacing: 14) {
+                VStack(alignment: .leading, spacing: 16) {
                     TodaySummaryHeader(
+                        today: today,
                         totalCount: dueToday.count,
-                        completedToday: dueToday.filter { completedTodayByHabitID[$0.id] == true }.count,
+                        completedToday: completedDueToday,
                         bestStreak: habits.compactMap { statsByHabitID[$0.id]?.currentStreak }.max() ?? 0
                     )
 
-                    ForEach(Array(dueToday.enumerated()), id: \.element.id) { index, habit in
-                        habitCard(habit, feedbackLevel: index)
+                    if !dueToday.isEmpty {
+                        LazyVGrid(columns: cardGridColumns, spacing: 16) {
+                            ForEach(Array(dueToday.enumerated()), id: \.element.id) { index, habit in
+                                habitCard(habit, feedbackLevel: index)
+                            }
+                        }
                     }
 
                     if !restingToday.isEmpty {
@@ -139,26 +170,32 @@ struct ContentView: View {
                                 .foregroundStyle(.secondary)
                             Spacer(minLength: 0)
                         }
-                        .padding(.top, 4)
+                        .padding(.top, 6)
 
-                        ForEach(Array(restingToday.enumerated()), id: \.element.id) { index, habit in
-                            habitCard(habit, feedbackLevel: index, isResting: true)
+                        LazyVGrid(columns: cardGridColumns, spacing: 16) {
+                            ForEach(Array(restingToday.enumerated()), id: \.element.id) { index, habit in
+                                habitCard(habit, feedbackLevel: index, isResting: true)
+                            }
                         }
                     }
                 }
+                .frame(maxWidth: 1080)
+                .frame(maxWidth: .infinity)
                 .padding(.horizontal, 18)
-                .padding(.top, 6)
-                .padding(.bottom, 24)
+                .padding(.top, 8)
+                .padding(.bottom, 28)
             }
             .background(AppBackground())
         }
     }
 
+    @ViewBuilder
     private func habitCard(_ habit: HabitEntity, feedbackLevel: Int, isResting: Bool = false) -> some View {
+        let isCompleted = completedTodayByHabitID[habit.id] ?? false
         HabitCardView(
             habit: habit,
             stats: statsByHabitID[habit.id] ?? .empty,
-            isCompletedToday: completedTodayByHabitID[habit.id] ?? false,
+            isCompletedToday: isCompleted,
             feedbackLevel: feedbackLevel
         ) {
             toggleToday(for: habit)
@@ -170,15 +207,40 @@ struct ContentView: View {
         }
         .contextMenu {
             let currentIndex = habits.firstIndex(where: { $0.id == habit.id })
-            Button("编辑") { selectedHabit = habit }
-            Button("今日备注") {
-                noteDraft = NoteDraft(habit: habit, day: today, note: note(for: habit, on: today))
+            Button {
+                toggleToday(for: habit)
+            } label: {
+                Label(isCompleted ? "取消今日打卡" : "完成今日打卡", systemImage: isCompleted ? "arrow.uturn.backward.circle" : "checkmark.circle")
             }
-            Button("上移") { move(habit, by: -1) }
+            Button {
+                selectedHabit = habit
+            } label: {
+                Label("编辑目标", systemImage: "pencil")
+            }
+            Button {
+                noteDraft = NoteDraft(habit: habit, day: today, note: note(for: habit, on: today))
+            } label: {
+                Label("今日备注", systemImage: "note.text")
+            }
+            Divider()
+            Button {
+                move(habit, by: -1)
+            } label: {
+                Label("上移", systemImage: "arrow.up")
+            }
                 .disabled(currentIndex == nil || currentIndex == 0)
-            Button("下移") { move(habit, by: 1) }
+            Button {
+                move(habit, by: 1)
+            } label: {
+                Label("下移", systemImage: "arrow.down")
+            }
                 .disabled(currentIndex == nil || currentIndex == habits.count - 1)
-            Button("删除", role: .destructive) { delete(habit) }
+            Divider()
+            Button(role: .destructive) {
+                delete(habit)
+            } label: {
+                Label("删除", systemImage: "trash")
+            }
         }
     }
 
@@ -297,6 +359,23 @@ struct ContentView: View {
         refreshDerivedStateAndWidgets(habits: remainingHabits, delayMilliseconds: 0, backupDelayMilliseconds: 2_500)
     }
 
+    private func createHabit(from template: QuickHabitTemplate) {
+        let nextSortOrder = (habits.map(\.sortOrder).max() ?? -1) + 1
+        let created = HabitEntity(
+            name: template.name,
+            icon: template.icon,
+            colorName: template.palette.rawValue,
+            cardStyle: template.cardKind.rawValue,
+            targetWeekdayMask: template.targetWeekdayMask,
+            sortOrder: nextSortOrder
+        )
+        modelContext.insert(created)
+        guard saveModelContext(action: "create template habit") else { return }
+        var updatedHabits = habits
+        updatedHabits.append(created)
+        refreshDerivedStateAndWidgets(habits: updatedHabits, delayMilliseconds: 0, backupDelayMilliseconds: 2_500)
+    }
+
     private func refreshDerivedStateAndWidgets(
         habits sourceHabits: [HabitEntity]? = nil,
         delayMilliseconds: UInt64 = 80,
@@ -333,10 +412,59 @@ struct ContentView: View {
 
 }
 
-private enum MainTab: Hashable {
-    case home
-    case stats
-    case settings
+private enum MainTab: Int, Hashable {
+    case home = 0
+    case stats = 1
+    case settings = 2
+}
+
+private struct QuickHabitTemplate: Identifiable {
+    let id: String
+    let name: String
+    let subtitle: String
+    let icon: String
+    let palette: HabitPalette
+    let cardKind: HabitCardKind
+    let targetWeekdayMask: Int
+
+    static let presets: [QuickHabitTemplate] = [
+        QuickHabitTemplate(
+            id: "morning-water",
+            name: "晨间喝水",
+            subtitle: "每天 · 唤醒身体",
+            icon: "drop.fill",
+            palette: .teal,
+            cardKind: .soft,
+            targetWeekdayMask: WeekdayMask.all
+        ),
+        QuickHabitTemplate(
+            id: "focus-reading",
+            name: "专注阅读 20 分钟",
+            subtitle: "每天 · 长期复利",
+            icon: "book.fill",
+            palette: .indigo,
+            cardKind: .glass,
+            targetWeekdayMask: WeekdayMask.all
+        ),
+        QuickHabitTemplate(
+            id: "outdoor-walk",
+            name: "户外快走",
+            subtitle: "工作日 · 保持活力",
+            icon: "figure.walk",
+            palette: .mint,
+            cardKind: .soft,
+            targetWeekdayMask: WeekdayMask.workdays
+        ),
+        QuickHabitTemplate(
+            id: "daily-review",
+            name: "睡前复盘",
+            subtitle: "每天 · 留痕沉淀",
+            icon: "sparkles",
+            palette: .amber,
+            cardKind: .minimal,
+            targetWeekdayMask: WeekdayMask.all
+        )
+    ]
 }
 
 private struct NoteDraft: Identifiable {
@@ -348,41 +476,123 @@ private struct NoteDraft: Identifiable {
 }
 
 private struct EmptyHabitView: View {
-    var action: () -> Void
+    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
+    @Environment(\.colorScheme) private var colorScheme
+
+    var onCreateCustom: () -> Void
+    var onCreateTemplate: (QuickHabitTemplate) -> Void
+
+    private let templateColumns = [
+        GridItem(.adaptive(minimum: 220, maximum: 320), spacing: 12)
+    ]
 
     var body: some View {
-        VStack(spacing: 22) {
-            Image(systemName: "sparkles")
-                .font(.system(size: 58, weight: .semibold))
-                .foregroundStyle(.yellow, .pink)
+        ScrollView {
+            VStack(spacing: 24) {
+                VStack(spacing: 14) {
+                    ZStack {
+                        Circle()
+                            .fill(
+                                LinearGradient(
+                                    colors: [Color.orange.opacity(0.22), Color.pink.opacity(0.18)],
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                )
+                            )
+                            .frame(width: 86, height: 86)
+                        Image(systemName: "sparkles")
+                            .font(.system(size: 40, weight: .semibold))
+                            .foregroundStyle(.orange, .pink)
+                    }
 
-            VStack(spacing: 8) {
-                Text("开始第一张打卡卡片")
-                    .font(.title2.weight(.bold))
-                Text("设置目标、颜色、图标和提醒，然后把它放到桌面小组件里。")
-                    .font(.body)
-                    .multilineTextAlignment(.center)
-                    .foregroundStyle(.secondary)
-                    .frame(maxWidth: 320)
-            }
+                    VStack(spacing: 8) {
+                        Text("开始第一张打卡卡片")
+                            .font(.title2.weight(.bold))
+                        Text("挑选一个常用模板快速起步，或自定义专属图标、配色、贴纸与桌面小组件。")
+                            .font(.body)
+                            .multilineTextAlignment(.center)
+                            .foregroundStyle(.secondary)
+                            .frame(maxWidth: 420)
+                    }
 
-            Button(action: action) {
-                Label("新建目标", systemImage: "plus.circle.fill")
-                    .font(.headline)
-                    .padding(.horizontal, 18)
-                    .padding(.vertical, 12)
+                    Button(action: onCreateCustom) {
+                        Label("自定义新建目标", systemImage: "plus.circle.fill")
+                            .font(.headline)
+                            .padding(.horizontal, 20)
+                            .padding(.vertical, 12)
+                    }
+                    .liquidGlassProminentButton()
+                }
+                .padding(.top, 28)
+
+                VStack(alignment: .leading, spacing: 12) {
+                    Text("一键快速模板")
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(.secondary)
+
+                    LazyVGrid(columns: templateColumns, spacing: 12) {
+                        ForEach(QuickHabitTemplate.presets) { template in
+                            Button {
+                                onCreateTemplate(template)
+                            } label: {
+                                HStack(spacing: 12) {
+                                    HabitIconGlyph(icon: template.icon, size: 20)
+                                        .foregroundStyle(template.palette.accent)
+                                        .frame(width: 40, height: 40)
+                                        .background(template.palette.accent.opacity(colorScheme == .dark ? 0.22 : 0.14), in: Circle())
+
+                                    VStack(alignment: .leading, spacing: 2) {
+                                        Text(template.name)
+                                            .font(.subheadline.weight(.bold))
+                                            .foregroundStyle(.primary)
+                                        Text(template.subtitle)
+                                            .font(.caption)
+                                            .foregroundStyle(.secondary)
+                                    }
+
+                                    Spacer(minLength: 4)
+
+                                    Image(systemName: "plus.circle")
+                                        .font(.title3)
+                                        .foregroundStyle(template.palette.accent)
+                                }
+                                .padding(14)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 18, style: .continuous)
+                                        .fill(Color.adaptiveChipSurface(for: colorScheme, reduceTransparency: reduceTransparency))
+                                )
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 18, style: .continuous)
+                                        .strokeBorder(Color.adaptiveCardBorder(for: colorScheme, reduceTransparency: reduceTransparency), lineWidth: 1)
+                                )
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+                }
+                .frame(maxWidth: 720)
             }
-            .liquidGlassProminentButton()
+            .frame(maxWidth: .infinity)
+            .padding(.horizontal, 20)
+            .padding(.bottom, 32)
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(AppBackground())
     }
 }
 
 private struct TodaySummaryHeader: View {
+    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
+    @Environment(\.colorScheme) private var colorScheme
+
+    let today: Date
     let totalCount: Int
     let completedToday: Int
     let bestStreak: Int
+
+    private var completionRatio: Double {
+        guard totalCount > 0 else { return 0 }
+        return min(max(Double(completedToday) / Double(totalCount), 0), 1)
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
@@ -390,48 +600,69 @@ private struct TodaySummaryHeader: View {
                 VStack(alignment: .leading, spacing: 6) {
                     Text("今日")
                         .font(.system(size: 34, weight: .bold, design: .rounded))
-                    Text(Date.now.formatted(date: .complete, time: .omitted))
+                    Text(today.formatted(date: .complete, time: .omitted))
                         .font(.callout)
                         .foregroundStyle(.secondary)
                 }
 
                 Spacer()
 
-                Image(systemName: "sparkles")
-                    .font(.system(size: 30, weight: .semibold))
-                    .foregroundStyle(.yellow, .cyan)
+                ZStack {
+                    Circle()
+                        .stroke(Color.primary.opacity(colorScheme == .dark ? 0.16 : 0.10), lineWidth: 5)
+                    Circle()
+                        .trim(from: 0, to: completionRatio)
+                        .stroke(
+                            AngularGradient(colors: [.teal, .green, .cyan, .teal], center: .center),
+                            style: StrokeStyle(lineWidth: 5, lineCap: .round)
+                        )
+                        .rotationEffect(.degrees(-90))
+                    Text("\(Int((completionRatio * 100).rounded()))%")
+                        .font(.caption.weight(.bold))
+                        .monospacedDigit()
+                }
+                .frame(width: 50, height: 50)
+                .accessibilityLabel("今日完成进度 \(Int((completionRatio * 100).rounded()))%")
             }
 
             HStack(spacing: 12) {
-                SummaryChip(title: "完成", value: "\(completedToday)/\(totalCount)", icon: "checkmark.circle.fill", tint: .green)
+                SummaryChip(title: "今日完成", value: "\(completedToday)/\(totalCount)", icon: "checkmark.circle.fill", tint: .green)
                 SummaryChip(title: "最好连续", value: "\(bestStreak) 天", icon: "flame.fill", tint: .orange)
             }
         }
-        .padding(16)
+        .padding(18)
         .background {
-            RoundedRectangle(cornerRadius: 28, style: .continuous)
-                .fill(
-                    LinearGradient(
-                        colors: [
-                            Color.cyan.opacity(0.12),
-                            Color.mint.opacity(0.06),
-                            Color(.systemBackground).opacity(0.94)
-                        ],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
+            if reduceTransparency {
+                RoundedRectangle(cornerRadius: 28, style: .continuous)
+                    .fill(Color.appBackgroundSecondary)
+            } else {
+                RoundedRectangle(cornerRadius: 28, style: .continuous)
+                    .fill(
+                        LinearGradient(
+                            colors: [
+                                Color.cyan.opacity(colorScheme == .dark ? 0.22 : 0.14),
+                                Color.mint.opacity(colorScheme == .dark ? 0.14 : 0.08),
+                                Color.appBackgroundSecondary.opacity(colorScheme == .dark ? 0.96 : 0.94)
+                            ],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
                     )
-                )
+            }
         }
         .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: 28, style: .continuous)
-                .strokeBorder(Color.white.opacity(0.26), lineWidth: 1)
+                .strokeBorder(Color.adaptiveCardBorder(for: colorScheme, reduceTransparency: reduceTransparency), lineWidth: 1)
         )
-        .shadow(color: Color.cyan.opacity(0.09), radius: 16, y: 8)
+        .shadow(color: Color.cyan.opacity(colorScheme == .dark ? 0.16 : 0.09), radius: 16, y: 8)
     }
 }
 
 private struct SummaryChip: View {
+    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
+    @Environment(\.colorScheme) private var colorScheme
+
     let title: String
     let value: String
     let icon: String
@@ -448,11 +679,19 @@ private struct SummaryChip: View {
                     .foregroundStyle(.secondary)
                 Text(value)
                     .font(.headline.weight(.bold))
+                    .monospacedDigit()
             }
             Spacer(minLength: 0)
         }
         .padding(11)
-        .background(.white.opacity(0.34), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+        .background(
+            RoundedRectangle(cornerRadius: 18, style: .continuous)
+                .fill(Color.adaptiveChipSurface(for: colorScheme, reduceTransparency: reduceTransparency))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 18, style: .continuous)
+                .strokeBorder(Color.adaptiveCardBorder(for: colorScheme, reduceTransparency: reduceTransparency).opacity(0.7), lineWidth: 0.8)
+        )
     }
 }
 

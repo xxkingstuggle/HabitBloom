@@ -6,6 +6,11 @@ struct HabitCardView: View {
     let isCompletedToday: Bool
     var feedbackLevel = 0
     var toggle: () -> Void
+
+    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.colorScheme) private var colorScheme
+
     @State private var bursts: [CheckInBurst] = []
     @State private var highlightSweep = false
     @State private var iconScale = 1.0
@@ -13,6 +18,7 @@ struct HabitCardView: View {
     @State private var activation = 0.0
     @State private var edgeGlow = false
     @State private var progressBoost = 0.0
+    @State private var isHovering = false
 
     private var palette: HabitPalette {
         HabitPalette(rawValue: habit.colorName) ?? .coral
@@ -31,6 +37,48 @@ struct HabitCardView: View {
         cachedStickerImage != nil
     }
 
+    private var actionCapsuleFill: Color {
+        if usesImageBackground {
+            return reduceTransparency ? Color.black.opacity(0.62) : Color.black.opacity(0.36)
+        }
+        if reduceTransparency {
+            return colorScheme == .dark ? Color.appSurfaceElevated : Color.appBackgroundPrimary
+        }
+        return colorScheme == .dark ? Color.white.opacity(0.14) : Color.white.opacity(0.68)
+    }
+
+    private var actionCapsuleStroke: Color {
+        if usesImageBackground {
+            return Color.white.opacity(reduceTransparency ? 0.50 : 0.28)
+        }
+        return isCompletedToday
+            ? palette.accent.opacity(reduceTransparency ? 0.72 : 0.42)
+            : Color.adaptiveCardBorder(for: colorScheme, reduceTransparency: reduceTransparency)
+    }
+
+    private var iconBadgeFill: Color {
+        if usesImageBackground {
+            return reduceTransparency ? Color.black.opacity(0.58) : Color.black.opacity(0.32)
+        }
+        if reduceTransparency {
+            return colorScheme == .dark ? Color.appSurfaceElevated : Color.appBackgroundPrimary
+        }
+        return colorScheme == .dark ? Color.white.opacity(0.12) : Color.white.opacity(0.72)
+    }
+
+    private var cardBorderColor: Color {
+        if isHovering {
+            return (usesImageBackground ? Color.white : palette.accent).opacity(reduceTransparency ? 0.85 : 0.58)
+        }
+        if usesImageBackground {
+            return Color.white.opacity(reduceTransparency ? 0.44 : 0.26)
+        }
+        if isCompletedToday {
+            return palette.accent.opacity(reduceTransparency ? 0.65 : 0.36)
+        }
+        return Color.adaptiveCardBorder(for: colorScheme, reduceTransparency: reduceTransparency)
+    }
+
     var body: some View {
         GeometryReader { proxy in
             ZStack(alignment: .topLeading) {
@@ -38,8 +86,8 @@ struct HabitCardView: View {
                     .overlay(
                         RadialGradient(
                             colors: [
-                                (usesImageBackground ? Color.white : palette.accent).opacity(0.30 * activation),
-                                (usesImageBackground ? Color.white : palette.accent).opacity(0.12 * activation),
+                                (usesImageBackground ? Color.white : palette.accent).opacity(reduceMotion ? 0 : 0.30 * activation),
+                                (usesImageBackground ? Color.white : palette.accent).opacity(reduceMotion ? 0 : 0.12 * activation),
                                 .clear
                             ],
                             center: .topTrailing,
@@ -47,9 +95,9 @@ struct HabitCardView: View {
                             endRadius: proxy.size.width * 0.95
                         )
                     )
-                    .brightness(activation * (usesImageBackground ? 0.08 : 0.045))
+                    .brightness(reduceMotion ? 0 : activation * (usesImageBackground ? 0.08 : 0.045))
 
-                if highlightSweep {
+                if highlightSweep && !reduceMotion {
                     LinearGradient(
                         colors: [.clear, Color.white.opacity(usesImageBackground ? 0.28 : 0.42), .clear],
                         startPoint: .topLeading,
@@ -60,7 +108,7 @@ struct HabitCardView: View {
                     .transition(.move(edge: .leading).combined(with: .opacity))
                 }
 
-                if edgeGlow {
+                if edgeGlow && !reduceMotion {
                     RoundedRectangle(cornerRadius: 28, style: .continuous)
                         .trim(from: 0, to: 0.92)
                         .stroke(
@@ -74,14 +122,16 @@ struct HabitCardView: View {
                         .transition(.opacity)
                 }
 
-                ForEach(bursts) { burst in
-                    CheckInBurstView(burst: burst, tint: usesImageBackground ? .white : palette.accent)
+                if !reduceMotion {
+                    ForEach(bursts) { burst in
+                        CheckInBurstView(burst: burst, tint: usesImageBackground ? .white : palette.accent)
+                    }
                 }
 
                 VStack(alignment: .leading, spacing: 14) {
                     HStack(alignment: .top) {
                         iconView
-                            .scaleEffect(iconScale)
+                            .scaleEffect(reduceMotion ? 1.0 : iconScale)
 
                         Spacer(minLength: 12)
 
@@ -93,20 +143,46 @@ struct HabitCardView: View {
                                 .font(.system(size: 27, weight: .semibold))
                                 .symbolRenderingMode(.hierarchical)
                                 .frame(width: 50, height: 42)
-                                .background((usesImageBackground ? Color.black.opacity(0.30) : Color.white.opacity(0.30)), in: Capsule(style: .continuous))
+                                .background(actionCapsuleFill, in: Capsule(style: .continuous))
+                                .overlay(
+                                    Capsule(style: .continuous)
+                                        .strokeBorder(actionCapsuleStroke, lineWidth: 1)
+                                )
                         }
                         .buttonStyle(.plain)
                         .foregroundStyle(isCompletedToday ? (usesImageBackground ? .white : palette.accent) : (usesImageBackground ? .white.opacity(0.90) : .primary))
                         .accessibilityLabel(isCompletedToday ? "取消今日打卡" : "完成今日打卡")
                     }
 
+                    Spacer(minLength: 0)
+
                     VStack(alignment: .leading, spacing: 6) {
-                        Text(habit.name)
-                            .font(.title3.weight(.bold))
-                            .lineLimit(2)
+                        HStack(alignment: .firstTextBaseline, spacing: 8) {
+                            Text(habit.name)
+                                .font(.title3.weight(.bold))
+                                .foregroundStyle(usesImageBackground ? .white : .primary)
+                                .lineLimit(2)
+
+                            Spacer(minLength: 4)
+
+                            if isCompletedToday {
+                                Text("已完成")
+                                    .font(.caption2.weight(.bold))
+                                    .padding(.horizontal, 8)
+                                    .padding(.vertical, 3)
+                                    .foregroundStyle(usesImageBackground ? .white : palette.accent)
+                                    .background(actionCapsuleFill, in: Capsule(style: .continuous))
+                                    .overlay(
+                                        Capsule(style: .continuous)
+                                            .strokeBorder(actionCapsuleStroke, lineWidth: 0.8)
+                                    )
+                            }
+                        }
+
                         Text("连续 \(stats.currentStreak) 天 · 累计 \(stats.totalCompletedDays) 天")
                             .font(.subheadline.weight(.medium))
-                            .foregroundStyle(usesImageBackground ? .white.opacity(0.82) : .secondary)
+                            .foregroundStyle(usesImageBackground ? .white.opacity(0.88) : .secondary)
+                            .monospacedDigit()
                     }
 
                     CardProgressBar(value: min(1, stats.monthCompletionRate + progressBoost), tint: usesImageBackground ? .white : palette.accent, isOnImage: usesImageBackground)
@@ -114,24 +190,39 @@ struct HabitCardView: View {
                 .padding(16)
             }
         }
-        .scaleEffect(cardScale)
+        .scaleEffect(reduceMotion ? 1.0 : (cardScale * (isHovering ? 1.008 : 1.0)))
         .aspectRatio(2.14, contentMode: .fit)
         .frame(maxWidth: .infinity)
         .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: 28, style: .continuous)
-                .strokeBorder(Color.white.opacity(0.26), lineWidth: 1)
+                .strokeBorder(cardBorderColor, lineWidth: (isHovering || reduceTransparency) ? 1.5 : 1)
         )
-        .shadow(color: palette.accent.opacity(0.11), radius: 18, y: 9)
+        .shadow(
+            color: (usesImageBackground ? Color.black : palette.accent).opacity(isHovering ? 0.18 : (colorScheme == .dark ? 0.22 : 0.11)),
+            radius: isHovering ? 20 : 14,
+            y: isHovering ? 10 : 7
+        )
+        .onHover { hovering in
+            if reduceMotion {
+                isHovering = hovering
+            } else {
+                withAnimation(.easeOut(duration: 0.18)) {
+                    isHovering = hovering
+                }
+            }
+        }
     }
 
     private func triggerFeedback(in size: CGSize) {
         let completing = !isCompletedToday
+        CheckInFeedbackService.shared.play(completing: completing, level: feedbackLevel)
+
+        guard !reduceMotion else { return }
+
         let origin = CGPoint(x: max(42, size.width - 42), y: 38)
         let intensity = completing ? 1.0 + min(Double(feedbackLevel), 8) * 0.075 : 0.62
         let burst = CheckInBurst(origin: origin, strength: intensity)
-
-        CheckInFeedbackService.shared.play(completing: completing, level: feedbackLevel)
 
         withAnimation(.spring(response: 0.20, dampingFraction: 0.70)) {
             cardScale = completing ? 0.985 : 0.992
@@ -175,32 +266,57 @@ struct HabitCardView: View {
     private var background: some View {
         switch cardKind {
         case .soft:
-            RoundedRectangle(cornerRadius: 28, style: .continuous)
-                .fill(
-                    LinearGradient(
-                        colors: [
-                            palette.accent.opacity(0.20),
-                            palette.accent.opacity(0.08),
-                            Color(.systemBackground).opacity(0.92)
-                        ],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
+            if reduceTransparency {
+                RoundedRectangle(cornerRadius: 28, style: .continuous)
+                    .fill(Color.appBackgroundSecondary)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 28, style: .continuous)
+                            .fill(palette.accent.opacity(colorScheme == .dark ? 0.18 : 0.12))
                     )
-                )
+            } else {
+                RoundedRectangle(cornerRadius: 28, style: .continuous)
+                    .fill(
+                        LinearGradient(
+                            colors: [
+                                palette.accent.opacity(colorScheme == .dark ? 0.28 : 0.20),
+                                palette.accent.opacity(colorScheme == .dark ? 0.12 : 0.08),
+                                Color.appBackgroundSecondary.opacity(colorScheme == .dark ? 0.96 : 0.92)
+                            ],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+            }
         case .glass:
-            RoundedRectangle(cornerRadius: 28, style: .continuous)
-                .fill(.thinMaterial)
-                .overlay(
-                    LinearGradient(
-                        colors: [Color.white.opacity(0.22), palette.accent.opacity(0.14)],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
+            if reduceTransparency {
+                RoundedRectangle(cornerRadius: 28, style: .continuous)
+                    .fill(Color.appBackgroundSecondary)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 28, style: .continuous)
+                            .fill(palette.accent.opacity(colorScheme == .dark ? 0.16 : 0.10))
                     )
-                )
+            } else {
+                RoundedRectangle(cornerRadius: 28, style: .continuous)
+                    .fill(.thinMaterial)
+                    .overlay(
+                        LinearGradient(
+                            colors: [
+                                Color.white.opacity(colorScheme == .dark ? 0.10 : 0.26),
+                                palette.accent.opacity(colorScheme == .dark ? 0.22 : 0.14)
+                            ],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+            }
         case .minimal:
             RoundedRectangle(cornerRadius: 28, style: .continuous)
-                .fill(Color(.secondarySystemBackground))
-                .overlay(palette.accent.opacity(0.16), alignment: .leading)
+                .fill(Color.appBackgroundSecondary)
+                .overlay(alignment: .leading) {
+                    Rectangle()
+                        .fill(palette.accent.opacity(reduceTransparency ? 0.72 : 0.52))
+                        .frame(width: 6)
+                }
         case .image:
             if let image = cachedStickerImage {
                 GeometryReader { proxy in
@@ -210,13 +326,13 @@ struct HabitCardView: View {
                         .frame(width: proxy.size.width, height: proxy.size.height)
                         .clipped()
                         .saturation(0.86)
-                        .overlay(.black.opacity(0.20))
+                        .overlay(.black.opacity(reduceTransparency ? 0.40 : 0.22))
                         .overlay(
                             LinearGradient(
                                 colors: [
-                                    .black.opacity(0.36),
-                                    .black.opacity(0.14),
-                                    .black.opacity(0.42)
+                                    .black.opacity(reduceTransparency ? 0.56 : 0.36),
+                                    .black.opacity(reduceTransparency ? 0.34 : 0.16),
+                                    .black.opacity(reduceTransparency ? 0.66 : 0.46)
                                 ],
                                 startPoint: .top,
                                 endPoint: .bottom
@@ -225,8 +341,11 @@ struct HabitCardView: View {
                 }
             } else {
                 RoundedRectangle(cornerRadius: 28, style: .continuous)
-                    .fill(palette.gradient.opacity(0.18))
-                    .background(.regularMaterial)
+                    .fill(Color.appBackgroundSecondary)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 28, style: .continuous)
+                            .fill(palette.gradient.opacity(reduceTransparency ? 0.16 : 0.22))
+                    )
             }
         }
     }
@@ -234,8 +353,15 @@ struct HabitCardView: View {
     private var iconView: some View {
         ZStack {
             Circle()
-                .fill(.white.opacity(0.30))
-                .overlay(Circle().stroke(Color.white.opacity(0.32), lineWidth: 1))
+                .fill(iconBadgeFill)
+                .overlay(
+                    Circle().stroke(
+                        usesImageBackground
+                            ? Color.white.opacity(reduceTransparency ? 0.50 : 0.32)
+                            : Color.adaptiveCardBorder(for: colorScheme, reduceTransparency: reduceTransparency),
+                        lineWidth: 1
+                    )
+                )
                 .frame(width: 54, height: 54)
             HabitIconGlyph(icon: habit.icon, size: habit.icon.isEmojiIcon ? 27 : 23)
                 .foregroundStyle(usesImageBackground ? .white : palette.accent)

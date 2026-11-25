@@ -80,6 +80,19 @@ final class CheckInEntity {
 
 enum WeekdayMask {
     static let all = (1 << 7) - 1
+    static let workdays = (2...6).reduce(0) { mask, weekday in set(weekday, enabled: true, in: mask) }
+    static let weekends = [1, 7].reduce(0) { mask, weekday in set(weekday, enabled: true, in: mask) }
+
+    static func summary(for mask: Int) -> String {
+        if mask == all { return "每天" }
+        if mask == workdays { return "工作日" }
+        if mask == weekends { return "周末" }
+        let labels = ["日", "一", "二", "三", "四", "五", "六"]
+        let selected = weekdays(from: mask).compactMap { weekday in
+            labels.indices.contains(weekday - 1) ? labels[weekday - 1] : nil
+        }
+        return selected.isEmpty ? "每天" : "周\(selected.joined(separator: "、"))"
+    }
 
     static func contains(_ weekday: Int, in mask: Int) -> Bool {
         mask & (1 << max(0, weekday - 1)) != 0
