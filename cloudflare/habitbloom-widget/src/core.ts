@@ -365,7 +365,7 @@ export class HabitSnapshotController {
         return json({ error: "invalid_image_size" }, 400);
       }
       if (!isJpegBytes(bodyBytes.bytes)) {
-        return json({ error: "invalid_image_format" }, 400);
+        return json({ error: "unsupported_media_type" }, 415);
       }
       const storedBuffer = bodyBytes.bytes.slice().buffer;
       await this.storage.put(imagePrefix + fileName, storedBuffer);

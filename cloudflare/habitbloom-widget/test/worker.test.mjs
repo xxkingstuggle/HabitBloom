@@ -178,7 +178,7 @@ test("image upload validates JPEG magic bytes, headers, manifest object/array co
     headers: harness.authHeaders({ "content-type": "image/jpeg" }),
     body: new Uint8Array([0x89, 0x50, 0x4e, 0x47])
   });
-  assert.equal(badFormat.status, 400);
+  assert.equal(badFormat.status, 415);
 
   const badMime = await harness.fetch(`/v1/image/${deviceKey}/habit-1-abcd.jpg`, {
     method: "PUT",
