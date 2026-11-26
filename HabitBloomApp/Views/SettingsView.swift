@@ -190,7 +190,7 @@ struct SettingsView: View {
     }
 
     private static var appVersion: String {
-        let short = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0.0"
+        let short = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.1.0"
         let build = Bundle.main.infoDictionary?["CFBundleVersion"] as? String
         if let build, !build.isEmpty, build != short {
             return "\(short) (\(build))"
