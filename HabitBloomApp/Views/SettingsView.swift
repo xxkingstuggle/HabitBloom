@@ -79,6 +79,87 @@ struct SettingsView: View {
                 Text("本地备份与云端备份都只保存目标设置、频率、提醒和打卡记录；自定义图片仅留在当前设备与小组件快照里。")
                     .foregroundStyle(.secondary)
             }
+
+            Section("关于 HabitBloom") {
+                HStack(spacing: 12) {
+                    ZStack {
+                        RoundedRectangle(cornerRadius: 12, style: .continuous)
+                            .fill(
+                                LinearGradient(
+                                    colors: [Color.accentColor, Color.accentColor.opacity(0.72)],
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                )
+                            )
+                            .frame(width: 44, height: 44)
+                        Image(systemName: "leaf.fill")
+                            .font(.system(size: 20, weight: .semibold))
+                            .foregroundStyle(.white)
+                    }
+
+                    VStack(alignment: .leading, spacing: 3) {
+                        HStack(spacing: 6) {
+                            Text("HabitBloom")
+                                .font(.headline)
+                            Text("v\(Self.appVersion)")
+                                .font(.caption.monospacedDigit().weight(.medium))
+                                .foregroundStyle(.secondary)
+                                .padding(.horizontal, 6)
+                                .padding(.vertical, 2)
+                                .background(Capsule().fill(Color.secondary.opacity(0.14)))
+                        }
+                        Text("由 张家鑫 · Xin (@xxkingstuggle) 设计与开发")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                .padding(.vertical, 4)
+
+                Link(destination: URL(string: "https://myzjx.com")!) {
+                    HStack {
+                        Label("官方网站", systemImage: "globe")
+                        Spacer()
+                        Text("myzjx.com")
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                        Image(systemName: "arrow.up.right")
+                            .font(.caption2.weight(.semibold))
+                            .foregroundStyle(.tertiary)
+                    }
+                }
+
+                Link(destination: URL(string: "https://myzjx.com/software/habitbloom/")!) {
+                    HStack {
+                        Label("产品主页", systemImage: "sparkles")
+                        Spacer()
+                        Text("myzjx.com/software/habitbloom/")
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                            .truncationMode(.middle)
+                        Image(systemName: "arrow.up.right")
+                            .font(.caption2.weight(.semibold))
+                            .foregroundStyle(.tertiary)
+                    }
+                }
+
+                Link(destination: URL(string: "https://github.com/xxkingstuggle")!) {
+                    HStack {
+                        Label("GitHub", systemImage: "chevron.left.forwardslash.chevron.right")
+                        Spacer()
+                        Text("@xxkingstuggle")
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                        Image(systemName: "arrow.up.right")
+                            .font(.caption2.weight(.semibold))
+                            .foregroundStyle(.tertiary)
+                    }
+                }
+
+                Text("© 2026 Xin (@xxkingstuggle)")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
         }
         .navigationTitle("设置")
         .fileExporter(
@@ -106,6 +187,15 @@ struct SettingsView: View {
                 }
             )
         }
+    }
+
+    private static var appVersion: String {
+        let short = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0.0"
+        let build = Bundle.main.infoDictionary?["CFBundleVersion"] as? String
+        if let build, !build.isEmpty, build != short {
+            return "\(short) (\(build))"
+        }
+        return short
     }
 
     private func exportLocalBackup() {
