@@ -108,7 +108,7 @@ struct SettingsView: View {
                                 .padding(.vertical, 2)
                                 .background(Capsule().fill(Color.secondary.opacity(0.14)))
                         }
-                        Text("由 张家鑫 · Xin (@xxkingstuggle) 设计与开发")
+                        Text("由 Xin (@xxkingstuggle) 设计与开发")
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
                     }
